@@ -9,6 +9,7 @@ from app.schemas.feature_flag import (
     FeatureFlagResponse
 )
 
+from app.services.redis_cache import invalidate_flag_cache
 
 router = APIRouter(
     prefix="/feature-flags",
@@ -37,6 +38,7 @@ def create_feature_flag(
         type=feature_flag.type,
         default_value=feature_flag.default_value,
         enabled=feature_flag.enabled,
+        rollout_percentage=feature_flag.rollout_percentage,
         owner_team=feature_flag.owner_team
     )
 
@@ -98,11 +100,17 @@ def update_feature_flag(
     if flag_data.enabled is not None:
         feature_flag.enabled = flag_data.enabled
 
+    if flag_data.rollout_percentage is not None:
+        feature_flag.rollout_percentage = flag_data.rollout_percentage
+
     if flag_data.owner_team is not None:
         feature_flag.owner_team = flag_data.owner_team
 
     db.commit()
     db.refresh(feature_flag)
+
+   # Invalidate cached evaluations for this feature flag
+    invalidate_flag_cache(feature_flag.key)
 
     return feature_flag
 

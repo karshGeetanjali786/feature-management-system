@@ -1,0 +1,582 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+const API_BASE = "http://127.0.0.1:8000";
+
+function FeatureFlags() {
+  const navigate = useNavigate();
+
+  const email = localStorage.getItem("user_email") || "User";
+
+  const [flags, setFlags] = useState([]);
+  const [showCreate, setShowCreate] = useState(false);
+
+  const [formData, setFormData] = useState({
+    key: "",
+    description: "",
+    type: "boolean",
+    default_value: false,
+    enabled: true,
+    rollout_percentage: 0,
+    owner_team: "",
+  });
+
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  const fetchFlags = async () => {
+    try {
+      setError("");
+
+      const response = await fetch(`${API_BASE}/feature-flags/`);
+
+      if (!response.ok) {
+        throw new Error("Could not load feature flags.");
+      }
+
+      const data = await response.json();
+      setFlags(data);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchFlags();
+  }, []);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]:
+        type === "checkbox"
+          ? checked
+          : name === "rollout_percentage"
+          ? Number(value)
+          : value,
+    }));
+  };
+
+  const createFlag = async (e) => {
+    e.preventDefault();
+
+    if (!formData.key.trim()) {
+      setError("Feature flag key is required.");
+      return;
+    }
+
+    try {
+      setError("");
+      setMessage("");
+
+      const response = await fetch(`${API_BASE}/feature-flags/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...formData,
+          key: formData.key.trim(),
+          description: formData.description.trim() || null,
+          owner_team: formData.owner_team.trim() || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Could not create feature flag.");
+      }
+
+      setMessage("Feature flag created successfully.");
+
+      setFormData({
+        key: "",
+        description: "",
+        type: "boolean",
+        default_value: false,
+        enabled: true,
+        rollout_percentage: 0,
+        owner_team: "",
+      });
+
+      setShowCreate(false);
+      fetchFlags();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const updateRollout = async (flag, percentage) => {
+    try {
+      setError("");
+      setMessage("");
+
+      const response = await fetch(
+        `${API_BASE}/feature-flags/${flag.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            rollout_percentage: Number(percentage),
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || "Could not update rollout percentage."
+        );
+      }
+
+      setMessage(
+        `${flag.key} rollout updated to ${percentage}%.`
+      );
+
+      fetchFlags();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const deleteFlag = async (flagId) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this feature flag?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setError("");
+      setMessage("");
+
+      const response = await fetch(
+        `${API_BASE}/feature-flags/${flagId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Could not delete feature flag.");
+      }
+
+      setMessage("Feature flag deleted successfully.");
+      fetchFlags();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div className="dashboard-page">
+      <aside className="sidebar">
+        <div className="sidebar-brand">
+          <div className="brand-icon small">✦</div>
+
+          <div>
+            <h2>Feature Management</h2>
+            <span>Control Console</span>
+          </div>
+        </div>
+
+        <nav>
+          <button
+            className="nav-item"
+            onClick={() => navigate("/home")}
+          >
+            Dashboard
+          </button>
+
+          <button className="nav-item"
+          onClick={() => navigate("/environments")}
+          >
+            Environments
+          </button>
+
+          <button className="nav-item active">
+            Feature Flags
+          </button>
+
+          <button className="nav-item"
+            onClick={() => navigate("/overrides")}>
+            Overrides
+          </button>
+
+          <button
+            className="nav-item"
+            onClick={() => navigate("/groups")}
+          >
+            Groups
+          </button>
+
+          <button
+            className="nav-item"
+            onClick={() => navigate("/targeting-rules")}
+          >
+            Targeting Rules
+          </button>
+
+          <button
+            className="nav-item"
+            onClick={() => navigate("/evaluation-tester")}
+          >
+            Evaluation Tester 
+          </button>
+        </nav>
+
+        <div className="sidebar-bottom">
+          <button className="nav-item">
+            Profile
+          </button>
+
+          <button
+            className="logout-button"
+            onClick={() => {
+              localStorage.removeItem("access_token");
+              localStorage.removeItem("user_email");
+              navigate("/login");
+            }}
+          >
+            Logout
+          </button>
+        </div>
+      </aside>
+
+      <main className="dashboard-main">
+        <header className="dashboard-header">
+          <div>
+            <p className="eyebrow">RELEASE CONTROL</p>
+
+            <h1>Feature Flags</h1>
+
+            <p>
+              Manage feature flags, enablement and percentage-based rollouts.
+            </p>
+          </div>
+
+          <div className="user-box">
+            <span>Signed in as</span>
+            <strong>{email}</strong>
+          </div>
+        </header>
+
+        <section className="member-metrics">
+          <div className="metric-card">
+            <span>◈</span>
+            <p>Total Flags</p>
+            <h2>{flags.length}</h2>
+          </div>
+
+          <div className="metric-card">
+            <span>✓</span>
+            <p>Enabled Flags</p>
+            <h2>
+              {flags.filter((flag) => flag.enabled).length}
+            </h2>
+          </div>
+
+          <div className="metric-card">
+            <span>%</span>
+            <p>Rollout Enabled</p>
+            <h2>
+              {
+                flags.filter(
+                  (flag) => Number(flag.rollout_percentage) > 0
+                ).length
+              }
+            </h2>
+          </div>
+        </section>
+
+        <section className="flags-toolbar">
+          <div>
+            <p className="eyebrow">FLAG DIRECTORY</p>
+            <h2>All Feature Flags</h2>
+          </div>
+
+          <button
+            className="primary-button create-group-button"
+            onClick={() => {
+              setShowCreate(true);
+              setError("");
+              setMessage("");
+            }}
+          >
+            + Create Feature Flag
+          </button>
+        </section>
+
+        {message && (
+          <div className="status-message success-message">
+            {message}
+          </div>
+        )}
+
+        {error && (
+          <div className="status-message error-message">
+            {error}
+          </div>
+        )}
+
+        {flags.length === 0 ? (
+          <section className="empty-state flags-empty">
+            <div className="empty-icon">◈</div>
+
+            <h3>No feature flags found</h3>
+
+            <p>
+              Create a feature flag to start managing rollout behaviour.
+            </p>
+          </section>
+        ) : (
+          <section className="flags-section">
+            <div className="flags-table-wrapper">
+              <table className="flags-table">
+                <thead>
+                  <tr>
+                    <th>FLAG</th>
+                    <th>STATUS</th>
+                    <th>ROLLOUT</th>
+                    <th>OWNER</th>
+                    <th>ACTION</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {flags.map((flag) => (
+                    <tr key={flag.id}>
+                      <td>
+                        <div className="flag-name-cell">
+                          <div className="rule-icon">⚑</div>
+
+                          <div>
+                            <strong>{flag.key}</strong>
+
+                            <span>
+                              ID #{flag.id} · {flag.type}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td>
+                        <span
+                          className={
+                            flag.enabled
+                              ? "active-badge"
+                              : "disabled-badge"
+                          }
+                        >
+                          {flag.enabled ? "Enabled" : "Disabled"}
+                        </span>
+                      </td>
+
+                      <td>
+                        <div className="rollout-control">
+                          <div className="rollout-value">
+                            <strong>
+                              {flag.rollout_percentage}%
+                            </strong>
+                          </div>
+
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={flag.rollout_percentage}
+                            onChange={(e) => {
+                              const value = Number(e.target.value);
+
+                              setFlags((prev) =>
+                                prev.map((item) =>
+                                  item.id === flag.id
+                                    ? {
+                                        ...item,
+                                        rollout_percentage: value,
+                                      }
+                                    : item
+                                )
+                              );
+                            }}
+                            onMouseUp={(e) =>
+                              updateRollout(
+                                flag,
+                                Number(e.target.value)
+                              )
+                            }
+                            onTouchEnd={(e) =>
+                              updateRollout(
+                                flag,
+                                Number(e.target.value)
+                              )
+                            }
+                          />
+                        </div>
+                      </td>
+
+                      <td>
+                        <span className="owner-text">
+                          {flag.owner_team || "—"}
+                        </span>
+                      </td>
+
+                      <td>
+                        <button
+                          className="action-button delete-button"
+                          onClick={() => deleteFlag(flag.id)}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {showCreate && (
+          <div
+            className="modal-overlay"
+            onClick={() => setShowCreate(false)}
+          >
+            <div
+              className="modal-card flag-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-header">
+                <div>
+                  <p className="eyebrow">NEW FLAG</p>
+                  <h2>Create Feature Flag</h2>
+                </div>
+
+                <button
+                  className="modal-close"
+                  onClick={() => setShowCreate(false)}
+                >
+                  ×
+                </button>
+              </div>
+
+              <form onSubmit={createFlag}>
+                <div className="two-column-form">
+                  <div className="form-group">
+                    <label>Flag Key</label>
+
+                    <input
+                      type="text"
+                      name="key"
+                      placeholder="e.g. new_dashboard"
+                      value={formData.key}
+                      onChange={handleChange}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Type</label>
+
+                    <select
+                      name="type"
+                      value={formData.type}
+                      onChange={handleChange}
+                    >
+                      <option value="boolean">Boolean</option>
+                      <option value="string">String</option>
+                      <option value="number">Number</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Description</label>
+
+                  <input
+                    type="text"
+                    name="description"
+                    placeholder="What does this flag control?"
+                    value={formData.description}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="two-column-form">
+                  <div className="form-group">
+                    <label>Owner Team</label>
+
+                    <input
+                      type="text"
+                      name="owner_team"
+                      placeholder="e.g. Frontend"
+                      value={formData.owner_team}
+                      onChange={handleChange}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Rollout Percentage</label>
+
+                    <div className="create-rollout-control">
+                      <input
+                        type="range"
+                        name="rollout_percentage"
+                        min="0"
+                        max="100"
+                        value={formData.rollout_percentage}
+                        onChange={handleChange}
+                      />
+
+                      <strong>
+                        {formData.rollout_percentage}%
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-group checkbox-group">
+                  <label>
+                    <input
+                      type="checkbox"
+                      name="enabled"
+                      checked={formData.enabled}
+                      onChange={handleChange}
+                    />
+                    Enable this feature flag
+                  </label>
+                </div>
+
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => setShowCreate(false)}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="primary-button"
+                  >
+                    Create Flag
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+export default FeatureFlags;

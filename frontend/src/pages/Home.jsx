@@ -26,9 +26,12 @@ function Home() {
 
         <nav>
           <button className="nav-item active">Dashboard</button>
-          <button className="nav-item">Environments</button>
-          <button className="nav-item">Feature Flags</button>
-          <button className="nav-item">Overrides</button>
+          <button className="nav-item" onClick={() => navigate("/environments")}>Environments</button>
+          <button className="nav-item" onClick={() => navigate("/feature-flags")}>Feature Flags</button>
+          <button className="nav-item" onClick={() => navigate("/overrides")}>Overrides</button>
+          <button className="nav-item" onClick={() => navigate("/groups")}>Groups</button>
+          <button className="nav-item" onClick={() => navigate("/targeting-rules")}>Targeting Rules</button>
+          <button className="nav-item" onClick={() => navigate("/evaluation-tester")}>Evaluation Tester</button>
         </nav>
 
         <div className="sidebar-bottom">
