@@ -16,7 +16,10 @@ class AuditLog(Base):
         ForeignKey("users.id"),
         nullable=True
     )
-
+    environment = Column(
+        String(50),
+        nullable=True
+    )
     new_value = Column(Text, nullable=True)
     old_value = Column(Text, nullable=True)
 

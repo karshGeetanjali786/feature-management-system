@@ -11,6 +11,8 @@ from app.routers.flag_evaluation import router as flag_evaluation_router
 from app.routers.group import router as group_router
 from app.routers.user_group_membership import router as user_group_membership_router
 from app.routers.targeting_rule import router as targeting_rule_router
+from app.routers.audit_log import router as audit_log_router
+from app.routers.analytics import router as analytics_router
 
 app = FastAPI(
     title="Feature Management System",
@@ -37,6 +39,8 @@ app.include_router(flag_evaluation_router)
 app.include_router(group_router)
 app.include_router(user_group_membership_router)
 app.include_router(targeting_rule_router)
+app.include_router(audit_log_router)
+app.include_router(analytics_router)
 
 @app.get("/")
 def root():

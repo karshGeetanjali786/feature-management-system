@@ -15,7 +15,7 @@ from app.services.redis_cache import (
     get_cached_result,
     set_cached_result
 )
-
+from app.services.evaluation_analytics import record_evaluation
 
 router = APIRouter(
     prefix="/flags",
@@ -57,6 +57,12 @@ def evaluate_feature_flag(
 
         if cached_result is not None:
             print(f"Redis Cache HIT: {cache_key}")
+
+            try:
+                record_evaluation(request.flag_key)
+            except Exception as e:
+                print(f"Analytics recording failed: {e}")
+
             return cached_result
 
         print(f"Redis Cache MISS: {cache_key}")
@@ -106,6 +112,11 @@ def evaluate_feature_flag(
             cache_key,
             response
         )
+
+        try:
+            record_evaluation(request.flag_key)
+        except Exception as e:
+            print(f"Analytics recording failed: {e}")
 
         return response
 

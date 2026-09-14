@@ -14,7 +14,7 @@ import TargetingRules from "./pages/TargetingRules";
 
 import Environments from "./pages/Environments";
 import Overrides from "./pages/Overrides";
-
+import AuditLogs from "./pages/AuditLogs";
 function App() {
   return (
     <Routes>
@@ -71,6 +71,11 @@ function App() {
       <Route
         path="/evaluation-tester"
         element={<EvaluationTester />}
+      />
+
+      <Route 
+        path="/audit-logs" 
+        element={<AuditLogs />} 
       />
 
       <Route

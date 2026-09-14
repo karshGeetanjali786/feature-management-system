@@ -11,6 +11,8 @@ from app.schemas.targeting_rule import (
     TargetingRuleResponse,
 )
 from app.services.redis_cache import invalidate_flag_cache
+from app.security import get_current_user
+from app.models.audit_log import AuditLog
 
 
 router = APIRouter(
@@ -43,7 +45,8 @@ def get_targeting_rules(
 )
 def create_targeting_rule(
     rule_data: TargetingRuleCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
 
     # Check whether feature flag exists
@@ -149,6 +152,24 @@ def create_targeting_rule(
     db.commit()
     db.refresh(rule)
 
+    # AUDIT LOG
+
+    audit_log = AuditLog(
+        action="CREATE_TARGETING_RULE",
+        performed_by=current_user.id,
+        environment=None,
+        old_value=None,
+        new_value=str({
+            "id": rule.id,
+            "flag_id": rule.flag_id,
+            "rule_type": rule.rule_type,
+            "rule_value": rule.rule_value
+        })
+    )
+
+    db.add(audit_log)
+    db.commit()
+
     # REDIS CACHE INVALIDATION
 
     invalidate_flag_cache(flag.key)
@@ -162,7 +183,8 @@ def create_targeting_rule(
 )
 def delete_targeting_rule(
     rule_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
 
     # Find targeting rule
@@ -188,6 +210,25 @@ def delete_targeting_rule(
         )
         .first()
     )
+
+    # Save old state for audit log
+    old_value = {
+        "id": rule.id,
+        "flag_id": rule.flag_id,
+        "rule_type": rule.rule_type,
+        "rule_value": rule.rule_value
+    }
+
+    # Audit log
+    audit_log = AuditLog(
+        action="DELETE_TARGETING_RULE",
+        performed_by=current_user.id,
+        environment=None,
+        old_value=str(old_value),
+        new_value=None
+    )
+
+    db.add(audit_log)
 
     # Delete rule
     db.delete(rule)

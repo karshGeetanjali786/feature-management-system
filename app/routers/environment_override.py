@@ -11,12 +11,19 @@ from app.schemas.environment_override import (
 )
 
 from app.services.redis_cache import invalidate_flag_cache
+from app.security import get_current_user
+from app.models.audit_log import AuditLog
 
 
 router = APIRouter(
     prefix="/environment-overrides",
     tags=["Environment Overrides"]
 )
+
+@router.get("/")
+def get_all_overrides(db: Session = Depends(get_db)):
+    overrides = db.query(EnvironmentOverride).all()
+    return overrides
 
 # CREATE ENVIRONMENT OVERRIDE
 
@@ -26,7 +33,8 @@ router = APIRouter(
 )
 def create_override(
     override: EnvironmentOverrideCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
 
     # Check whether feature flag exists
@@ -86,6 +94,23 @@ def create_override(
     db.commit()
     db.refresh(new_override)
 
+    # Audit log
+    audit_log = AuditLog(
+        action="CREATE_ENVIRONMENT_OVERRIDE",
+        performed_by=current_user.id,
+        environment=environment.name,
+        old_value=None,
+        new_value=str({
+            "id": new_override.id,
+            "flag_id": new_override.flag_id,
+            "environment_id": new_override.environment_id,
+            "value": new_override.value
+        })
+    )
+
+    db.add(audit_log)
+    db.commit()
+
     # Invalidate Redis cache
     invalidate_flag_cache(flag.key)
 
@@ -101,7 +126,8 @@ def create_override(
 def update_override(
     override_id: int,
     override: EnvironmentOverrideCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
 
     # Find existing override
@@ -175,6 +201,12 @@ def update_override(
         .first()
     )
 
+    old_value = {
+        "id": existing_override.id,
+        "flag_id": existing_override.flag_id,
+        "environment_id": existing_override.environment_id,
+        "value": existing_override.value
+    }
     # Update override
     existing_override.flag_id = override.flag_id
     existing_override.environment_id = override.environment_id
@@ -182,6 +214,23 @@ def update_override(
 
     db.commit()
     db.refresh(existing_override)
+
+    # Audit log
+    audit_log = AuditLog(
+        action="UPDATE_ENVIRONMENT_OVERRIDE",
+        performed_by=current_user.id,
+        environment=environment.name,
+        old_value=str(old_value),
+        new_value=str({
+            "id": existing_override.id,
+            "flag_id": existing_override.flag_id,
+            "environment_id": existing_override.environment_id,
+            "value": existing_override.value
+        })
+    )
+
+    db.add(audit_log)
+    db.commit()
 
     # Invalidate cache for new flag
     invalidate_flag_cache(flag.key)
@@ -201,7 +250,8 @@ def update_override(
 )
 def delete_override(
     override_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
 
     # Find override
@@ -227,6 +277,24 @@ def delete_override(
         )
         .first()
     )
+
+    old_value = {
+        "id": existing_override.id,
+        "flag_id": existing_override.flag_id,
+        "environment_id": existing_override.environment_id,
+        "value": existing_override.value
+    }
+    
+    # Audit log
+    audit_log = AuditLog(
+        action="DELETE_ENVIRONMENT_OVERRIDE",
+        performed_by=current_user.id,
+        environment=None,
+        old_value=str(old_value),
+        new_value=None
+    )
+
+    db.add(audit_log)
 
     # Delete override
     db.delete(existing_override)

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Sidebar from "../components/Sidebar";
 
 const API_BASE = "http://127.0.0.1:8000";
 
@@ -105,63 +106,7 @@ function Groups() {
 
   return (
     <div className="dashboard-page">
-      <aside className="sidebar">
-        <div className="sidebar-brand">
-          <div className="brand-icon small">✦</div>
-
-          <div>
-            <h2>Feature Management</h2>
-            <span>Control Console</span>
-          </div>
-        </div>
-
-        <nav>
-          <button
-            className="nav-item"
-            onClick={() => navigate("/home")}
-          >
-            Dashboard
-          </button>
-
-          <button className="nav-item">Environments</button>
-          <button className="nav-item">Feature Flags</button>
-          <button
-            className="nav-item"
-            onClick={() => navigate("/overrides")}
-          >
-             Overrides
-          </button>
-
-          <button className="nav-item active">
-            Groups
-          </button>
-
-          <button
-            className="nav-item"
-            onClick={() => navigate("/targeting-rules")}
-          >
-            Targeting Rules
-          </button>
-
-          <button
-            className="nav-item"
-            onClick={() => navigate("/evaluation-tester")}
-          >
-            Evaluation Tester
-          </button>
-        </nav>
-
-        <div className="sidebar-bottom">
-          <button className="nav-item">Profile</button>
-
-          <button
-            className="logout-button"
-            onClick={() => navigate("/login")}
-          >
-            Logout
-          </button>
-        </div>
-      </aside>
+      <Sidebar />
 
       <main className="dashboard-main">
         <header className="dashboard-header">
