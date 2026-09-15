@@ -4,7 +4,6 @@ import Sidebar from "../components/Sidebar";
 const API_BASE = "http://127.0.0.1:8000";
 
 function TargetingRules() {
-
   const email = localStorage.getItem("user_email") || "User";
 
   const [rules, setRules] = useState([]);
@@ -18,16 +17,47 @@ function TargetingRules() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("access_token");
+
+    return {
+      Authorization: `Bearer ${token}`,
+    };
+  };
+
   const fetchData = async () => {
     try {
       setError("");
 
+      const token = localStorage.getItem("access_token");
+
+      if (!token) {
+        setError("Not authenticated. Please login again.");
+        return;
+      }
+
+      const authHeaders = {
+        Authorization: `Bearer ${token}`,
+      };
+
       const [rulesResponse, flagsResponse, groupsResponse] =
         await Promise.all([
-          fetch(`${API_BASE}/targeting-rules/`),
-          fetch(`${API_BASE}/feature-flags/`),
-          fetch(`${API_BASE}/groups/`),
+          fetch(`${API_BASE}/targeting-rules/`, {
+            headers: authHeaders,
+          }),
+          fetch(`${API_BASE}/feature-flags/`, {
+            headers: authHeaders,
+          }),
+          fetch(`${API_BASE}/groups/`, {
+            headers: authHeaders,
+          }),
         ]);
+
+      if (rulesResponse.status === 401) {
+        setError("Session expired. Please login again.");
+        localStorage.removeItem("access_token");
+        return;
+      }
 
       if (!rulesResponse.ok) {
         throw new Error("Could not load targeting rules.");
@@ -66,10 +96,18 @@ function TargetingRules() {
       setError("");
       setMessage("");
 
+      const token = localStorage.getItem("access_token");
+
+      if (!token) {
+        setError("Not authenticated. Please login again.");
+        return;
+      }
+
       const response = await fetch(`${API_BASE}/targeting-rules/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           flag_id: Number(flagId),
@@ -79,6 +117,12 @@ function TargetingRules() {
       });
 
       const data = await response.json();
+
+      if (response.status === 401) {
+        setError("Session expired. Please login again.");
+        localStorage.removeItem("access_token");
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(data.detail || "Could not create targeting rule.");
@@ -105,14 +149,28 @@ function TargetingRules() {
       setError("");
       setMessage("");
 
+      const token = localStorage.getItem("access_token");
+
+      if (!token) {
+        setError("Not authenticated. Please login again.");
+        return;
+      }
+
       const response = await fetch(
         `${API_BASE}/targeting-rules/${ruleId}`,
         {
           method: "DELETE",
+          headers: getAuthHeaders(),
         }
       );
 
       const data = await response.json();
+
+      if (response.status === 401) {
+        setError("Session expired. Please login again.");
+        localStorage.removeItem("access_token");
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(data.detail || "Could not delete targeting rule.");
@@ -184,10 +242,7 @@ function TargetingRules() {
             </div>
           </div>
 
-          <form
-            className="targeting-form"
-            onSubmit={createRule}
-          >
+          <form className="targeting-form" onSubmit={createRule}>
             <div className="targeting-field">
               <label>Feature Flag</label>
 

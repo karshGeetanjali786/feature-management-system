@@ -48,6 +48,12 @@ function Login() {
         return;
       }
 
+      if (!data.access_token) {
+        setError("Login failed: access token not received.");
+        return;
+      }
+
+      // Save authentication token
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("user_email", formData.email);
 
