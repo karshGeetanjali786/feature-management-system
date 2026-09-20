@@ -50,16 +50,18 @@ def evaluate_feature_flag(
             f"{groups_key}"
         )
 
-       
         # 1. CHECK REDIS CACHE
-       
+
         cached_result = get_cached_result(cache_key)
 
         if cached_result is not None:
             print(f"Redis Cache HIT: {cache_key}")
 
             try:
-                record_evaluation(request.flag_key)
+                record_evaluation(
+                    request.flag_key,
+                    request.environment
+                )
             except Exception as e:
                 print(f"Analytics recording failed: {e}")
 
@@ -68,7 +70,7 @@ def evaluate_feature_flag(
         print(f"Redis Cache MISS: {cache_key}")
 
         # 2. EVALUATE FLAG
-       
+
         result = evaluate_flag(
             flag_key=request.flag_key,
             environment=request.environment,
@@ -113,8 +115,13 @@ def evaluate_feature_flag(
             response
         )
 
+        # 4. RECORD ANALYTICS
+
         try:
-            record_evaluation(request.flag_key)
+            record_evaluation(
+                request.flag_key,
+                request.environment
+            )
         except Exception as e:
             print(f"Analytics recording failed: {e}")
 

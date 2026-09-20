@@ -1,3 +1,4 @@
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -13,6 +14,7 @@ router = APIRouter(
     tags=["Audit Logs"]
 )
 
+
 @router.get("/recent")
 def get_recent_audit_logs(
     db: Session = Depends(get_db),
@@ -27,12 +29,15 @@ def get_recent_audit_logs(
 
     return logs
 
+
 @router.get("/")
 def get_audit_logs(
     action: Optional[str] = Query(None),
     performed_by: Optional[int] = Query(None),
     flag_key: Optional[str] = Query(None),
     environment: Optional[str] = Query(None),
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
@@ -61,6 +66,31 @@ def get_audit_logs(
     if environment:
         query = query.filter(
             AuditLog.environment == environment
+        )
+
+    # Filter from date
+    if date_from:
+        start_datetime = datetime.combine(
+            date_from,
+            datetime.min.time()
+        )
+
+        query = query.filter(
+            AuditLog.timestamp >= start_datetime
+        )
+
+    # Filter to date
+    if date_to:
+        # Include the complete end date
+        next_day = date_to + timedelta(days=1)
+
+        end_datetime = datetime.combine(
+            next_day,
+            datetime.min.time()
+        )
+
+        query = query.filter(
+            AuditLog.timestamp < end_datetime
         )
 
     logs = (
