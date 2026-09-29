@@ -9,19 +9,49 @@ class AuditLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    action = Column(String(100), nullable=False)
+    action = Column(
+        String(100),
+        nullable=False
+    )
 
     performed_by = Column(
         Integer,
         ForeignKey("users.id"),
         nullable=True
     )
+
+    flag_id = Column(
+        Integer,
+        ForeignKey(
+            "feature_flags.id",
+            ondelete="SET NULL"
+        ),
+        nullable=True
+    )
+
+    environment_id = Column(
+        Integer,
+        ForeignKey(
+            "environments.id",
+            ondelete="SET NULL"
+        ),
+        nullable=True
+    )
+
     environment = Column(
         String(50),
         nullable=True
     )
-    new_value = Column(Text, nullable=True)
-    old_value = Column(Text, nullable=True)
+
+    new_value = Column(
+        Text,
+        nullable=True
+    )
+
+    old_value = Column(
+        Text,
+        nullable=True
+    )
 
     timestamp = Column(
         DateTime(timezone=True),

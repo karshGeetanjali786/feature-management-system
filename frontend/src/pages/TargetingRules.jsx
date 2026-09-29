@@ -1,10 +1,15 @@
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
+import { useTranslation } from "react-i18next";
 
 const API_BASE = "http://127.0.0.1:8000";
 
 function TargetingRules() {
+  const { t } = useTranslation();
+
   const email = localStorage.getItem("user_email") || "User";
+  const role = localStorage.getItem("user_role") || "user";
+  const isAdmin = role === "admin";
 
   const [rules, setRules] = useState([]);
   const [flags, setFlags] = useState([]);
@@ -20,9 +25,11 @@ function TargetingRules() {
   const getAuthHeaders = () => {
     const token = localStorage.getItem("access_token");
 
-    return {
-      Authorization: `Bearer ${token}`,
-    };
+    return token
+      ? {
+          Authorization: `Bearer ${token}`,
+        }
+      : {};
   };
 
   const fetchData = async () => {
@@ -32,7 +39,7 @@ function TargetingRules() {
       const token = localStorage.getItem("access_token");
 
       if (!token) {
-        setError("Not authenticated. Please login again.");
+        setError(t("notAuthenticated"));
         return;
       }
 
@@ -40,27 +47,30 @@ function TargetingRules() {
         Authorization: `Bearer ${token}`,
       };
 
-      const [rulesResponse, flagsResponse, groupsResponse] =
-        await Promise.all([
-          fetch(`${API_BASE}/targeting-rules/`, {
-            headers: authHeaders,
-          }),
-          fetch(`${API_BASE}/feature-flags/`, {
-            headers: authHeaders,
-          }),
-          fetch(`${API_BASE}/groups/`, {
-            headers: authHeaders,
-          }),
-        ]);
+      const [
+        rulesResponse,
+        flagsResponse,
+        groupsResponse,
+      ] = await Promise.all([
+        fetch(`${API_BASE}/targeting-rules/`, {
+          headers: authHeaders,
+        }),
+        fetch(`${API_BASE}/feature-flags/`, {
+          headers: authHeaders,
+        }),
+        fetch(`${API_BASE}/groups/`, {
+          headers: authHeaders,
+        }),
+      ]);
 
       if (rulesResponse.status === 401) {
-        setError("Session expired. Please login again.");
+        setError(t("sessionExpired"));
         localStorage.removeItem("access_token");
         return;
       }
 
       if (!rulesResponse.ok) {
-        throw new Error("Could not load targeting rules.");
+        throw new Error(t("couldNotLoadTargetingRules"));
       }
 
       const rulesData = await rulesResponse.json();
@@ -88,7 +98,7 @@ function TargetingRules() {
     e.preventDefault();
 
     if (!flagId || !ruleValue.trim()) {
-      setError("Please enter Feature Flag and Rule Value.");
+      setError(t("featureFlagAndRuleRequired"));
       return;
     }
 
@@ -99,36 +109,47 @@ function TargetingRules() {
       const token = localStorage.getItem("access_token");
 
       if (!token) {
-        setError("Not authenticated. Please login again.");
+        setError(t("notAuthenticated"));
         return;
       }
 
-      const response = await fetch(`${API_BASE}/targeting-rules/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          flag_id: Number(flagId),
-          rule_type: ruleType,
-          rule_value: ruleValue.trim(),
-        }),
-      });
+      const response = await fetch(
+        `${API_BASE}/targeting-rules/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            flag_id: Number(flagId),
+            rule_type: ruleType,
+            rule_value: ruleValue.trim(),
+          }),
+        }
+      );
 
       const data = await response.json();
 
       if (response.status === 401) {
-        setError("Session expired. Please login again.");
+        setError(t("sessionExpired"));
         localStorage.removeItem("access_token");
         return;
       }
 
-      if (!response.ok) {
-        throw new Error(data.detail || "Could not create targeting rule.");
+      if (response.status === 403) {
+        setError(t("adminAccessRequired"));
+        return;
       }
 
-      setMessage("Targeting rule created successfully.");
+      if (!response.ok) {
+        throw new Error(
+          data.detail || t("couldNotCreateTargetingRule")
+        );
+      }
+
+      setMessage(t("targetingRuleCreated"));
+
       setFlagId("");
       setRuleValue("");
 
@@ -140,7 +161,7 @@ function TargetingRules() {
 
   const deleteRule = async (ruleId) => {
     const confirmed = window.confirm(
-      "Are you sure you want to delete this targeting rule?"
+      t("confirmDeleteTargetingRule")
     );
 
     if (!confirmed) return;
@@ -152,7 +173,7 @@ function TargetingRules() {
       const token = localStorage.getItem("access_token");
 
       if (!token) {
-        setError("Not authenticated. Please login again.");
+        setError(t("notAuthenticated"));
         return;
       }
 
@@ -167,16 +188,24 @@ function TargetingRules() {
       const data = await response.json();
 
       if (response.status === 401) {
-        setError("Session expired. Please login again.");
+        setError(t("sessionExpired"));
         localStorage.removeItem("access_token");
         return;
       }
 
-      if (!response.ok) {
-        throw new Error(data.detail || "Could not delete targeting rule.");
+      if (response.status === 403) {
+        setError(t("adminAccessRequired"));
+        return;
       }
 
-      setMessage("Targeting rule deleted successfully.");
+      if (!response.ok) {
+        throw new Error(
+          data.detail || t("couldNotDeleteTargetingRule")
+        );
+      }
+
+      setMessage(t("targetingRuleDeleted"));
+
       fetchData();
     } catch (err) {
       setError(err.message);
@@ -184,8 +213,13 @@ function TargetingRules() {
   };
 
   const getFlagName = (id) => {
-    const flag = flags.find((item) => item.id === id);
-    return flag ? flag.key : `Flag #${id}`;
+    const flag = flags.find(
+      (item) => item.id === id
+    );
+
+    return flag
+      ? flag.key
+      : `${t("flag")} #${id}`;
   };
 
   return (
@@ -195,158 +229,206 @@ function TargetingRules() {
       <main className="dashboard-main">
         <header className="dashboard-header">
           <div>
-            <p className="eyebrow">AUDIENCE TARGETING</p>
+            <p className="eyebrow">
+              {t("audienceTargeting")}
+            </p>
 
-            <h1>Targeting Rules</h1>
+            <h1>{t("targetingRules")}</h1>
 
             <p>
-              Control which users and groups receive specific feature flags.
+              {t("targetingRulesDescription")}
             </p>
           </div>
 
           <div className="user-box">
-            <span>Signed in as</span>
+            <span>{t("signedInAs")}</span>
             <strong>{email}</strong>
           </div>
         </header>
 
+        {error && (
+          <div className="status-message error-message">
+            {error}
+          </div>
+        )}
+
+        {message && (
+          <div className="status-message success-message">
+            {message}
+          </div>
+        )}
+
         <section className="member-metrics">
           <div className="metric-card">
             <span>◈</span>
-            <p>Total Rules</p>
+            <p>{t("totalRules")}</p>
             <h2>{rules.length}</h2>
           </div>
 
           <div className="metric-card">
             <span>●</span>
-            <p>User Rules</p>
+            <p>{t("userRules")}</p>
             <h2>
-              {rules.filter((rule) => rule.rule_type === "user").length}
+              {
+                rules.filter(
+                  (rule) => rule.rule_type === "user"
+                ).length
+              }
             </h2>
           </div>
 
           <div className="metric-card">
             <span>◆</span>
-            <p>Group Rules</p>
+            <p>{t("groupRules")}</p>
             <h2>
-              {rules.filter((rule) => rule.rule_type === "group").length}
+              {
+                rules.filter(
+                  (rule) => rule.rule_type === "group"
+                ).length
+              }
             </h2>
           </div>
         </section>
 
-        <section className="targeting-create-section">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">CREATE RULE</p>
-              <h2>Add Targeting Rule</h2>
-            </div>
-          </div>
+        {isAdmin && (
+          <section className="targeting-create-section">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">
+                  {t("createRule")}
+                </p>
 
-          <form className="targeting-form" onSubmit={createRule}>
-            <div className="targeting-field">
-              <label>Feature Flag</label>
-
-              <select
-                value={flagId}
-                onChange={(e) => setFlagId(e.target.value)}
-              >
-                <option value="">Select feature flag</option>
-
-                {flags.map((flag) => (
-                  <option key={flag.id} value={flag.id}>
-                    {flag.key} (#{flag.id})
-                  </option>
-                ))}
-              </select>
+                <h2>{t("addTargetingRule")}</h2>
+              </div>
             </div>
 
-            <div className="targeting-field">
-              <label>Rule Type</label>
+            <form
+              className="targeting-form"
+              onSubmit={createRule}
+            >
+              <div className="targeting-field">
+                <label>{t("featureFlag")}</label>
 
-              <select
-                value={ruleType}
-                onChange={(e) => {
-                  setRuleType(e.target.value);
-                  setRuleValue("");
-                }}
-              >
-                <option value="user">User</option>
-                <option value="group">Group</option>
-              </select>
-            </div>
-
-            <div className="targeting-field">
-              <label>
-                {ruleType === "user" ? "User ID" : "Group"}
-              </label>
-
-              {ruleType === "group" ? (
                 <select
-                  value={ruleValue}
-                  onChange={(e) => setRuleValue(e.target.value)}
+                  value={flagId}
+                  onChange={(e) =>
+                    setFlagId(e.target.value)
+                  }
                 >
-                  <option value="">Select group</option>
+                  <option value="">
+                    {t("selectFeatureFlag")}
+                  </option>
 
-                  {groups.map((group) => (
+                  {flags.map((flag) => (
                     <option
-                      key={group.id}
-                      value={group.group_name}
+                      key={flag.id}
+                      value={flag.id}
                     >
-                      {group.group_name}
+                      {flag.key} (#{flag.id})
                     </option>
                   ))}
                 </select>
-              ) : (
-                <input
-                  type="number"
-                  placeholder="Enter user ID"
-                  value={ruleValue}
-                  onChange={(e) => setRuleValue(e.target.value)}
-                />
-              )}
-            </div>
+              </div>
 
-            <button
-              type="submit"
-              className="primary-button targeting-submit"
-            >
-              + Add Rule
-            </button>
-          </form>
+              <div className="targeting-field">
+                <label>{t("ruleType")}</label>
 
-          {message && (
-            <div className="status-message success-message">
-              {message}
-            </div>
-          )}
+                <select
+                  value={ruleType}
+                  onChange={(e) => {
+                    setRuleType(e.target.value);
+                    setRuleValue("");
+                  }}
+                >
+                  <option value="user">
+                    {t("user")}
+                  </option>
 
-          {error && (
-            <div className="status-message error-message">
-              {error}
-            </div>
-          )}
-        </section>
+                  <option value="group">
+                    {t("group")}
+                  </option>
+                </select>
+              </div>
+
+              <div className="targeting-field">
+                <label>
+                  {ruleType === "user"
+                    ? t("userId")
+                    : t("group")}
+                </label>
+
+                {ruleType === "group" ? (
+                  <select
+                    value={ruleValue}
+                    onChange={(e) =>
+                      setRuleValue(e.target.value)
+                    }
+                  >
+                    <option value="">
+                      {t("selectGroup")}
+                    </option>
+
+                    {groups.map((group) => (
+                      <option
+                        key={group.id}
+                        value={group.group_name}
+                      >
+                        {group.group_name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="number"
+                    placeholder={t("enterUserId")}
+                    value={ruleValue}
+                    onChange={(e) =>
+                      setRuleValue(e.target.value)
+                    }
+                  />
+                )}
+              </div>
+
+              <button
+                type="submit"
+                className="primary-button targeting-submit"
+              >
+                + {t("addRule")}
+              </button>
+            </form>
+          </section>
+        )}
 
         <section className="targeting-rules-section">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">ACTIVE CONFIGURATION</p>
-              <h2>Existing Rules</h2>
+              <p className="eyebrow">
+                {t("activeConfiguration")}
+              </p>
+
+              <h2>{t("existingRules")}</h2>
             </div>
 
             <span className="count-badge">
-              {rules.length} rule{rules.length !== 1 ? "s" : ""}
+              {rules.length}{" "}
+              {rules.length !== 1
+                ? t("rules")
+                : t("rule")}
             </span>
           </div>
 
           {rules.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-icon">◎</div>
+              <div className="empty-icon">
+                ◎
+              </div>
 
-              <h3>No targeting rules</h3>
+              <h3>{t("noTargetingRules")}</h3>
 
               <p>
-                Add a user or group rule to start targeting this feature.
+                {isAdmin
+                  ? t("addTargetingRuleToStart")
+                  : t("noTargetingRulesAvailable")}
               </p>
             </div>
           ) : (
@@ -354,11 +436,14 @@ function TargetingRules() {
               <table className="targeting-table">
                 <thead>
                   <tr>
-                    <th>RULE</th>
-                    <th>FEATURE FLAG</th>
-                    <th>TYPE</th>
-                    <th>TARGET</th>
-                    <th>ACTION</th>
+                    <th>{t("rule").toUpperCase()}</th>
+                    <th>{t("featureFlag").toUpperCase()}</th>
+                    <th>{t("type").toUpperCase()}</th>
+                    <th>{t("target").toUpperCase()}</th>
+
+                    {isAdmin && (
+                      <th>{t("action").toUpperCase()}</th>
+                    )}
                   </tr>
                 </thead>
 
@@ -373,15 +458,20 @@ function TargetingRules() {
 
                       <td>
                         <div className="flag-name-cell">
-                          <div className="rule-icon">⚑</div>
+                          <div className="rule-icon">
+                            ⚑
+                          </div>
 
                           <div>
                             <strong>
-                              {getFlagName(rule.flag_id)}
+                              {getFlagName(
+                                rule.flag_id
+                              )}
                             </strong>
 
                             <span>
-                              Flag ID #{rule.flag_id}
+                              {t("flagId")} #
+                              {rule.flag_id}
                             </span>
                           </div>
                         </div>
@@ -396,8 +486,8 @@ function TargetingRules() {
                           }
                         >
                           {rule.rule_type === "user"
-                            ? "User"
-                            : "Group"}
+                            ? t("user")
+                            : t("group")}
                         </span>
                       </td>
 
@@ -407,14 +497,18 @@ function TargetingRules() {
                         </span>
                       </td>
 
-                      <td>
-                        <button
-                          className="action-button delete-button"
-                          onClick={() => deleteRule(rule.id)}
-                        >
-                          Remove
-                        </button>
-                      </td>
+                      {isAdmin && (
+                        <td>
+                          <button
+                            className="action-button delete-button"
+                            onClick={() =>
+                              deleteRule(rule.id)
+                            }
+                          >
+                            {t("remove")}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

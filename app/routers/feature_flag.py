@@ -1,3 +1,5 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -10,7 +12,7 @@ from app.schemas.feature_flag import (
 )
 
 from app.services.redis_cache import invalidate_flag_cache
-from app.security import get_current_user
+from app.security import get_current_user, require_admin
 from app.models.audit_log import AuditLog
 
 
@@ -18,6 +20,7 @@ router = APIRouter(
     prefix="/feature-flags",
     tags=["Feature Flags"]
 )
+
 
 # CREATE FEATURE FLAG
 
@@ -51,13 +54,16 @@ def create_feature_flag(
     db.commit()
     db.refresh(new_flag)
 
-    # Create audit log for flag creation
+    # Audit log for flag creation
     audit_log = AuditLog(
         action="CREATE_FLAG",
         performed_by=current_user.id,
+        flag_id=new_flag.id,
+        environment_id=None,
         environment=None,
         old_value=None,
-        new_value=str({
+        new_value=json.dumps({
+            "id": new_flag.id,
             "key": new_flag.key,
             "description": new_flag.description,
             "type": new_flag.type,
@@ -110,7 +116,8 @@ def update_feature_flag(
     flag_id: int,
     flag_data: FeatureFlagUpdate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    # current_user=Depends(get_current_user)
+    current_user=Depends(require_admin)
 ):
     feature_flag = db.query(FeatureFlag).filter(
         FeatureFlag.id == flag_id
@@ -122,8 +129,9 @@ def update_feature_flag(
             detail="Feature flag not found"
         )
 
-    # Save old values before updating
-    old_value = {
+    # Save old state before updating
+    old_state = {
+        "id": feature_flag.id,
         "key": feature_flag.key,
         "description": feature_flag.description,
         "type": feature_flag.type,
@@ -132,6 +140,9 @@ def update_feature_flag(
         "rollout_percentage": feature_flag.rollout_percentage,
         "owner_team": feature_flag.owner_team
     }
+
+    old_enabled = feature_flag.enabled
+    old_rollout = feature_flag.rollout_percentage
 
     # Update fields
     if flag_data.description is not None:
@@ -155,8 +166,9 @@ def update_feature_flag(
     db.commit()
     db.refresh(feature_flag)
 
-    # Save new values after updating
-    new_value = {
+    # Save new state
+    new_state = {
+        "id": feature_flag.id,
         "key": feature_flag.key,
         "description": feature_flag.description,
         "type": feature_flag.type,
@@ -166,16 +178,78 @@ def update_feature_flag(
         "owner_team": feature_flag.owner_team
     }
 
-    # Create audit log for update
-    audit_log = AuditLog(
-        action="UPDATE_FLAG",
-        performed_by=current_user.id,
-        environment=None,
-        old_value=str(old_value),
-        new_value=str(new_value)
+   
+    # 1. ENABLE / DISABLE AUDIT
+    
+    if old_enabled != feature_flag.enabled:
+
+        action = (
+            "ENABLE_FLAG"
+            if feature_flag.enabled
+            else "DISABLE_FLAG"
+        )
+
+        audit_log = AuditLog(
+            action=action,
+            performed_by=current_user.id,
+            flag_id=feature_flag.id,
+            environment_id=None,
+            environment=None,
+            old_value=json.dumps({
+                "enabled": old_enabled
+            }),
+            new_value=json.dumps({
+                "enabled": feature_flag.enabled
+            })
+        )
+
+        db.add(audit_log)
+
+   
+    # 2. ROLLOUT CHANGE AUDIT
+
+    if old_rollout != feature_flag.rollout_percentage:
+
+        audit_log = AuditLog(
+            action="ROLLOUT_CHANGED",
+            performed_by=current_user.id,
+            flag_id=feature_flag.id,
+            environment_id=None,
+            environment=None,
+            old_value=json.dumps({
+                "rollout_percentage": old_rollout
+            }),
+            new_value=json.dumps({
+                "rollout_percentage": feature_flag.rollout_percentage
+            })
+        )
+
+        db.add(audit_log)
+
+
+    # 3. NORMAL FLAG UPDATE AUDIT
+
+    normal_field_changed = (
+        old_state["description"] != new_state["description"]
+        or old_state["type"] != new_state["type"]
+        or old_state["default_value"] != new_state["default_value"]
+        or old_state["owner_team"] != new_state["owner_team"]
     )
 
-    db.add(audit_log)
+    if normal_field_changed:
+
+        audit_log = AuditLog(
+            action="UPDATE_FLAG",
+            performed_by=current_user.id,
+            flag_id=feature_flag.id,
+            environment_id=None,
+            environment=None,
+            old_value=json.dumps(old_state),
+            new_value=json.dumps(new_state)
+        )
+
+        db.add(audit_log)
+
     db.commit()
 
     # Invalidate Redis cache
@@ -190,7 +264,8 @@ def update_feature_flag(
 def delete_feature_flag(
     flag_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    # current_user=Depends(get_current_user)
+    current_user=Depends(require_admin)
 ):
     feature_flag = db.query(FeatureFlag).filter(
         FeatureFlag.id == flag_id
@@ -202,8 +277,8 @@ def delete_feature_flag(
             detail="Feature flag not found"
         )
 
-    # Save flag details before deleting
-    old_value = {
+    # Save flag state before deletion
+    old_state = {
         "id": feature_flag.id,
         "key": feature_flag.key,
         "description": feature_flag.description,
@@ -214,15 +289,17 @@ def delete_feature_flag(
         "owner_team": feature_flag.owner_team
     }
 
-    # Save key for Redis cache invalidation
     flag_key = feature_flag.key
+    flag_id_value = feature_flag.id
 
-    # Create audit log for deletion
+    # Audit log for deletion
     audit_log = AuditLog(
         action="DELETE_FLAG",
         performed_by=current_user.id,
+        flag_id=flag_id_value,
+        environment_id=None,
         environment=None,
-        old_value=str(old_value),
+        old_value=json.dumps(old_state),
         new_value=None
     )
 

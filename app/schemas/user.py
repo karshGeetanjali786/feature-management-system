@@ -12,9 +12,11 @@ class UserResponse(BaseModel):
     full_name: str
     email: EmailStr
     is_active: bool
+    role: str
 
     class Config:
         from_attributes = True
+
 
 class UserLogin(BaseModel):
     email: EmailStr

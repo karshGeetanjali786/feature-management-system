@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import { useTranslation } from "react-i18next";
 
 import {
   LineChart,
@@ -17,10 +18,11 @@ import {
 function Home() {
   const navigate = useNavigate();
 
+  const { t } = useTranslation();
+
   const email = localStorage.getItem("user_email") || "User";
   const token = localStorage.getItem("access_token");
 
-  
   // DASHBOARD METRICS
   const [totalFlags, setTotalFlags] = useState(0);
   const [activeFlags, setActiveFlags] = useState(0);
@@ -49,6 +51,11 @@ function Home() {
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [usageLoading, setUsageLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(true);
+
+  // // LANGUAGE CHANGE
+  // const changeLanguage = (language) => {
+  //   i18n.changeLanguage(language);
+  // };
 
   // FETCH DASHBOARD DATA
   useEffect(() => {
@@ -124,9 +131,7 @@ function Home() {
           ),
         ]);
 
-        
         // FEATURE FLAGS
-
         if (flagsResponse.ok) {
           const flags = await flagsResponse.json();
 
@@ -145,7 +150,6 @@ function Home() {
         }
 
         // ENVIRONMENTS
-
         if (environmentsResponse.ok) {
           const environments =
             await environmentsResponse.json();
@@ -161,7 +165,6 @@ function Home() {
         }
 
         // OVERRIDES
-
         if (overridesResponse.ok) {
           const overrides =
             await overridesResponse.json();
@@ -177,7 +180,6 @@ function Home() {
         }
 
         // EVALUATION ANALYTICS
-
         if (analyticsResponse.ok) {
           const analyticsData =
             await analyticsResponse.json();
@@ -211,7 +213,6 @@ function Home() {
         }
 
         // ENVIRONMENT USAGE
-    
         if (usageResponse.ok) {
           const usageData =
             await usageResponse.json();
@@ -227,7 +228,6 @@ function Home() {
         }
 
         // RECENT AUDIT LOGS
-
         if (logsResponse.ok) {
           const logsData =
             await logsResponse.json();
@@ -241,7 +241,6 @@ function Home() {
         }
 
         // AUDIT LOGS TODAY
-
         if (allLogsResponse.ok) {
           const allLogs =
             await allLogsResponse.json();
@@ -299,35 +298,44 @@ function Home() {
       <main className="dashboard-main">
 
         {/* HEADER */}
-
         <header className="dashboard-header">
 
           <div>
 
             <p className="eyebrow">
-              RELEASE CONTROL HUB
+              {t("releaseControlHub")}
             </p>
 
             <h1>
-              Feature Management Console
+              {t("featureManagementConsole")}
             </h1>
 
             <p>
-              Manage feature flags, environments and
-              configuration from one place.
+              {t("dashboardDescription")}
             </p>
 
           </div>
 
-          <div className="user-box">
+          <div
+            className="user-box"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "16px",
+            }}
+          >
 
-            <span>
-              Signed in as
-            </span>
+            <div>
+              <span>
+                {t("signedInAs")}
+              </span>
 
-            <strong>
-              {email}
-            </strong>
+              <strong>
+                {email}
+              </strong>
+            </div>
+
+            
 
           </div>
 
@@ -335,17 +343,15 @@ function Home() {
 
 
         {/* METRICS */}
-
         <section className="metrics-grid">
 
           {/* TOTAL FLAGS */}
-
           <div className="metric-card">
 
             <span>◈</span>
 
             <p>
-              Total Feature Flags
+              {t("totalFeatureFlags")}
             </p>
 
             <h2>
@@ -358,13 +364,12 @@ function Home() {
 
 
           {/* ACTIVE FLAGS */}
-
           <div className="metric-card">
 
             <span>✓</span>
 
             <p>
-              Active Flags
+              {t("activeFlags")}
             </p>
 
             <h2>
@@ -377,13 +382,12 @@ function Home() {
 
 
           {/* ENVIRONMENTS */}
-
           <div className="metric-card">
 
             <span>▣</span>
 
             <p>
-              Environments
+              {t("environmentsCount")}
             </p>
 
             <h2>
@@ -396,13 +400,12 @@ function Home() {
 
 
           {/* OVERRIDES */}
-
           <div className="metric-card">
 
             <span>⚙</span>
 
             <p>
-              Overrides
+              {t("overridesCount")}
             </p>
 
             <h2>
@@ -415,13 +418,12 @@ function Home() {
 
 
           {/* TODAY'S EVALUATIONS */}
-
           <div className="metric-card">
 
             <span>◉</span>
 
             <p>
-              Today's Evaluations
+              {t("todaysEvaluations")}
             </p>
 
             <h2>
@@ -434,13 +436,12 @@ function Home() {
 
 
           {/* AUDIT LOGS TODAY */}
-
           <div className="metric-card">
 
             <span>▤</span>
 
             <p>
-              Audit Logs Today
+              {t("auditLogsToday")}
             </p>
 
             <h2>
@@ -455,7 +456,6 @@ function Home() {
 
 
         {/* EVALUATION ANALYTICS */}
-
         <section className="analytics-card">
 
           <div className="analytics-header">
@@ -463,16 +463,15 @@ function Home() {
             <div>
 
               <p className="eyebrow">
-                EVALUATION ANALYTICS
+                {t("evaluationAnalytics")}
               </p>
 
               <h2>
-                Feature Flag Evaluations
+                {t("featureFlagEvaluations")}
               </h2>
 
               <p>
-                Evaluation activity during the last
-                24 hours.
+                {t("evaluationActivity")}
               </p>
 
             </div>
@@ -481,7 +480,7 @@ function Home() {
             <div className="analytics-summary">
 
               <span>
-                Total Evaluations
+                {t("totalEvaluations")}
               </span>
 
               <strong>
@@ -496,19 +495,18 @@ function Home() {
 
 
           {/* HOURLY CHART */}
-
           <div className="analytics-chart">
 
             {analyticsLoading ? (
 
               <div className="analytics-empty">
-                Loading analytics...
+                {t("loadingAnalytics")}
               </div>
 
             ) : analytics.hourly.length === 0 ? (
 
               <div className="analytics-empty">
-                No evaluation data available yet.
+                {t("noEvaluationData")}
               </div>
 
             ) : (
@@ -550,10 +548,10 @@ function Home() {
                   <Tooltip
                     formatter={(value) => [
                       value,
-                      "Evaluations",
+                      t("evaluations"),
                     ]}
                     labelFormatter={(label) =>
-                      `Time: ${label}`
+                      `${t("time")}: ${label}`
                     }
                   />
 
@@ -576,7 +574,6 @@ function Home() {
 
 
           {/* EVALUATIONS BY FLAG */}
-
           <div className="flag-analytics-section">
 
             <div className="flag-analytics-title">
@@ -584,16 +581,15 @@ function Home() {
               <div>
 
                 <p className="eyebrow">
-                  FLAG ANALYTICS
+                  {t("flagAnalytics")}
                 </p>
 
                 <h3>
-                  Evaluations by Feature Flag
+                  {t("evaluationsByFeatureFlag")}
                 </h3>
 
                 <p>
-                  Evaluation count for each feature
-                  flag during the last 24 hours.
+                  {t("flagEvaluationDescription")}
                 </p>
 
               </div>
@@ -604,13 +600,13 @@ function Home() {
             {analyticsLoading ? (
 
               <div className="analytics-empty small">
-                Loading flag analytics...
+                {t("loadingFlagAnalytics")}
               </div>
 
             ) : analytics.by_flag.length === 0 ? (
 
               <div className="analytics-empty small">
-                No feature flag analytics available.
+                {t("noFlagAnalytics")}
               </div>
 
             ) : (
@@ -643,10 +639,10 @@ function Home() {
                           </strong>
 
                           <span>
-                            {flag.evaluations} evaluation
+                            {flag.evaluations}{" "}
                             {flag.evaluations !== 1
-                              ? "s"
-                              : ""}
+                              ? t("evaluationsPlural")
+                              : t("evaluation")}
                           </span>
 
                         </div>
@@ -686,7 +682,6 @@ function Home() {
 
 
         {/* ENVIRONMENT USAGE */}
-
         <section className="analytics-card">
 
           <div className="analytics-header">
@@ -694,16 +689,15 @@ function Home() {
             <div>
 
               <p className="eyebrow">
-                ENVIRONMENT ANALYTICS
+                {t("environmentAnalytics")}
               </p>
 
               <h2>
-                Environment Usage
+                {t("environmentUsage")}
               </h2>
 
               <p>
-                Feature flag evaluation usage across
-                environments during the last 24 hours.
+                {t("environmentUsageDescription")}
               </p>
 
             </div>
@@ -716,13 +710,13 @@ function Home() {
             {usageLoading ? (
 
               <div className="analytics-empty">
-                Loading environment usage...
+                {t("loadingEnvironmentUsage")}
               </div>
 
             ) : environmentUsage.length === 0 ? (
 
               <div className="analytics-empty">
-                No environment usage data available.
+                {t("noEnvironmentUsage")}
               </div>
 
             ) : (
@@ -764,7 +758,7 @@ function Home() {
                   <Tooltip
                     formatter={(value) => [
                       value,
-                      "Evaluations",
+                      t("evaluations"),
                     ]}
                   />
 
@@ -784,7 +778,6 @@ function Home() {
 
 
           {/* ENVIRONMENT SUMMARY */}
-
           <div className="flag-analytics-list">
 
             {environmentUsage.map(
@@ -802,10 +795,10 @@ function Home() {
                     </strong>
 
                     <span>
-                      {item.evaluations} evaluation
+                      {item.evaluations}{" "}
                       {item.evaluations !== 1
-                        ? "s"
-                        : ""}
+                        ? t("evaluationsPlural")
+                        : t("evaluation")}
                     </span>
 
                   </div>
@@ -827,7 +820,6 @@ function Home() {
 
 
         {/* RECENT AUDIT ACTIVITY */}
-
         <section className="audit-dashboard-card">
 
           <div className="audit-dashboard-header">
@@ -835,16 +827,15 @@ function Home() {
             <div>
 
               <p className="eyebrow">
-                AUDIT ACTIVITY
+                {t("auditActivity")}
               </p>
 
               <h2>
-                Recent Audit Logs
+                {t("recentAuditLogs")}
               </h2>
 
               <p>
-                Latest changes made in the feature
-                management system.
+                {t("latestChanges")}
               </p>
 
             </div>
@@ -856,7 +847,7 @@ function Home() {
                 navigate("/audit-logs")
               }
             >
-              View All
+              {t("viewAll")}
             </button>
 
           </div>
@@ -867,13 +858,13 @@ function Home() {
             {logsLoading ? (
 
               <div className="audit-empty">
-                Loading audit logs...
+                {t("loadingAuditLogs")}
               </div>
 
             ) : recentLogs.length === 0 ? (
 
               <div className="audit-empty">
-                No audit activity available.
+                {t("noAuditActivity")}
               </div>
 
             ) : (
@@ -900,13 +891,13 @@ function Home() {
                     <div className="audit-info">
 
                       <span>
-                        Actor: User #{log.performed_by}
+                        {t("actor")}: User #{log.performed_by}
                       </span>
 
                       <span>
                         {log.environment
-                          ? `Environment: ${log.environment}`
-                          : "Environment: —"}
+                          ? `${t("environment")}: ${log.environment}`
+                          : `${t("environment")}: —`}
                       </span>
 
                     </div>
@@ -934,24 +925,19 @@ function Home() {
         </section>
 
 
-        {/* =========================
-            WELCOME
-        ========================= */}
-
+        {/* WELCOME */}
         <section className="welcome-card">
 
           <p className="eyebrow">
-            WELCOME
+            {t("welcome")}
           </p>
 
           <h2>
-            You're inside the Feature Management System.
+            {t("welcomeTitle")}
           </h2>
 
           <p>
-            Manage feature flags, environments, targeting
-            rules, rollouts and evaluation controls from
-            the dashboard.
+            {t("welcomeDescription")}
           </p>
 
           <button
@@ -960,7 +946,7 @@ function Home() {
               navigate("/feature-flags")
             }
           >
-            Manage Feature Flags
+            {t("manageFeatureFlags")}
           </button>
 
         </section>

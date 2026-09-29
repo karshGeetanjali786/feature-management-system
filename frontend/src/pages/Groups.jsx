@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import Sidebar from "../components/Sidebar";
 
 const API_BASE = "http://127.0.0.1:8000";
 
 function Groups() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [groups, setGroups] = useState([]);
   const [groupName, setGroupName] = useState("");
@@ -14,6 +16,10 @@ function Groups() {
   const [message, setMessage] = useState("");
   const [showCreate, setShowCreate] = useState(false);
 
+  const email = localStorage.getItem("user_email") || "User";
+  const role = localStorage.getItem("user_role") || "user";
+  const isAdmin = role === "admin";
+
   const fetchGroups = async () => {
     try {
       setError("");
@@ -21,7 +27,7 @@ function Groups() {
       const response = await fetch(`${API_BASE}/groups/`);
 
       if (!response.ok) {
-        throw new Error("Could not load groups.");
+        throw new Error(t("couldNotLoadGroups"));
       }
 
       const data = await response.json();
@@ -39,7 +45,7 @@ function Groups() {
     e.preventDefault();
 
     if (!groupName.trim()) {
-      setError("Please enter a group name.");
+      setError(t("groupNameRequired"));
       return;
     }
 
@@ -51,6 +57,7 @@ function Groups() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
         body: JSON.stringify({
           group_name: groupName.trim(),
@@ -60,10 +67,10 @@ function Groups() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Could not create group.");
+        throw new Error(data.detail || t("couldNotCreateGroup"));
       }
 
-      setMessage("Group created successfully.");
+      setMessage(t("groupCreated"));
       setGroupName("");
       setShowCreate(false);
       fetchGroups();
@@ -73,9 +80,7 @@ function Groups() {
   };
 
   const deleteGroup = async (groupId) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this group?"
-    );
+    const confirmed = window.confirm(t("confirmDeleteGroup"));
 
     if (!confirmed) return;
 
@@ -85,15 +90,18 @@ function Groups() {
 
       const response = await fetch(`${API_BASE}/groups/${groupId}`, {
         method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Could not delete group.");
+        throw new Error(data.detail || t("couldNotDeleteGroup"));
       }
 
-      setMessage("Group deleted successfully.");
+      setMessage(t("groupDeleted"));
       fetchGroups();
     } catch (err) {
       setError(err.message);
@@ -111,18 +119,16 @@ function Groups() {
       <main className="dashboard-main">
         <header className="dashboard-header">
           <div>
-            <p className="eyebrow">USER MANAGEMENT</p>
+            <p className="eyebrow">{t("userManagement")}</p>
 
-            <h1>User Groups</h1>
+            <h1>{t("userGroups")}</h1>
 
-            <p>
-              Create and manage groups used for feature flag targeting.
-            </p>
+            <p>{t("userGroupsDescription")}</p>
           </div>
 
           <div className="user-box">
-            <span>Total Groups</span>
-            <strong>{groups.length}</strong>
+            <span>{t("signedInAs")}</span>
+            <strong>{email}</strong>
           </div>
         </header>
 
@@ -132,22 +138,25 @@ function Groups() {
 
             <input
               type="text"
-              placeholder="Search groups..."
+              placeholder={t("searchGroups")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
 
-          <button
-            className="primary-button create-group-button"
-            onClick={() => {
-              setShowCreate(true);
-              setError("");
-              setMessage("");
-            }}
-          >
-            + Create Group
-          </button>
+          {/* Only Admin can create groups */}
+          {isAdmin && (
+            <button
+              className="primary-button create-group-button"
+              onClick={() => {
+                setShowCreate(true);
+                setError("");
+                setMessage("");
+              }}
+            >
+              + {t("createGroup")}
+            </button>
+          )}
         </section>
 
         {message && (
@@ -165,13 +174,15 @@ function Groups() {
         <section className="groups-section">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">GROUP DIRECTORY</p>
-              <h2>All Groups</h2>
+              <p className="eyebrow">{t("groupDirectory")}</p>
+              <h2>{t("allGroups")}</h2>
             </div>
 
             <span className="count-badge">
-              {filteredGroups.length} group
-              {filteredGroups.length !== 1 ? "s" : ""}
+              {filteredGroups.length}{" "}
+              {filteredGroups.length !== 1
+                ? t("groups")
+                : t("group")}
             </span>
           </div>
 
@@ -179,28 +190,28 @@ function Groups() {
             <div className="empty-state">
               <div className="empty-icon">◈</div>
 
-              <h3>No groups found</h3>
+              <h3>{t("noGroupsFound")}</h3>
 
-              <p>
-                Create your first user group to start targeting features.
-              </p>
+              <p>{t("noGroupsDescription")}</p>
 
-              <button
-                className="primary-button"
-                onClick={() => setShowCreate(true)}
-              >
-                + Create Group
-              </button>
+              {isAdmin && (
+                <button
+                  className="primary-button"
+                  onClick={() => setShowCreate(true)}
+                >
+                  + {t("createGroup")}
+                </button>
+              )}
             </div>
           ) : (
             <div className="groups-table-wrapper">
               <table className="groups-table">
                 <thead>
                   <tr>
-                    <th>GROUP</th>
-                    <th>GROUP ID</th>
-                    <th>CREATED</th>
-                    <th>ACTIONS</th>
+                    <th>{t("group")}</th>
+                    <th>{t("groupId")}</th>
+                    <th>{t("created")}</th>
+                    <th>{t("actions")}</th>
                   </tr>
                 </thead>
 
@@ -217,7 +228,7 @@ function Groups() {
 
                           <div>
                             <strong>{group.group_name}</strong>
-                            <span>User targeting group</span>
+                            <span>{t("userTargetingGroup")}</span>
                           </div>
                         </div>
                       </td>
@@ -240,6 +251,7 @@ function Groups() {
 
                       <td>
                         <div className="table-actions">
+                          {/* Both User and Admin can view members */}
                           <button
                             className="action-button view-button"
                             onClick={() =>
@@ -248,17 +260,20 @@ function Groups() {
                               )
                             }
                           >
-                            View Members
+                            {t("viewMembers")}
                           </button>
 
-                          <button
-                            className="action-button delete-button"
-                            onClick={() =>
-                              deleteGroup(group.id)
-                            }
-                          >
-                            Delete
-                          </button>
+                          {/* Admin only */}
+                          {isAdmin && (
+                            <button
+                              className="action-button delete-button"
+                              onClick={() =>
+                                deleteGroup(group.id)
+                              }
+                            >
+                              {t("delete")}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -280,8 +295,8 @@ function Groups() {
             >
               <div className="modal-header">
                 <div>
-                  <p className="eyebrow">NEW GROUP</p>
-                  <h2>Create User Group</h2>
+                  <p className="eyebrow">{t("newGroup")}</p>
+                  <h2>{t("createUserGroup")}</h2>
                 </div>
 
                 <button
@@ -294,11 +309,11 @@ function Groups() {
 
               <form onSubmit={createGroup}>
                 <div className="form-group">
-                  <label>Group Name</label>
+                  <label>{t("groupName")}</label>
 
                   <input
                     type="text"
-                    placeholder="e.g. beta_users"
+                    placeholder={t("groupNamePlaceholder")}
                     value={groupName}
                     onChange={(e) =>
                       setGroupName(e.target.value)
@@ -313,14 +328,14 @@ function Groups() {
                     className="secondary-button"
                     onClick={() => setShowCreate(false)}
                   >
-                    Cancel
+                    {t("cancel")}
                   </button>
 
                   <button
                     type="submit"
                     className="primary-button"
                   >
-                    Create Group
+                    {t("createGroup")}
                   </button>
                 </div>
               </form>

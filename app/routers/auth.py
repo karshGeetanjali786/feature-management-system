@@ -14,7 +14,10 @@ router = APIRouter(
 
 
 @router.post("/signup", response_model=UserResponse)
-def signup(user: UserCreate, db: Session = Depends(get_db)):
+def signup(
+    user: UserCreate,
+    db: Session = Depends(get_db)
+):
 
     existing_user = db.query(User).filter(
         User.email == user.email
@@ -30,7 +33,8 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
         full_name=user.full_name,
         email=user.email,
         password_hash=hash_password(user.password),
-        is_active=True
+        is_active=True,
+        role="user"
     )
 
     db.add(new_user)
@@ -39,8 +43,12 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
 
     return new_user
 
+
 @router.post("/login")
-def login(user: UserLogin, db: Session = Depends(get_db)):
+def login(
+    user: UserLogin,
+    db: Session = Depends(get_db)
+):
 
     existing_user = db.query(User).filter(
         User.email == user.email
@@ -64,12 +72,14 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     access_token = create_access_token(
         {
             "sub": str(existing_user.id),
-            "email": existing_user.email
+            "email": existing_user.email,
+            "role": existing_user.role
         }
     )
 
     return {
         "message": "Login successful",
         "access_token": access_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "role": existing_user.role
     }

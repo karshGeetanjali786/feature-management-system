@@ -1,3 +1,4 @@
+from app.security import get_current_user, require_admin
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -19,7 +20,9 @@ router = APIRouter(
 @router.post("/", response_model=EnvironmentResponse)
 def create_environment(
     environment: EnvironmentCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+
 ):
     existing_environment = db.query(Environment).filter(
         Environment.name == environment.name
@@ -70,7 +73,8 @@ def get_environment(
 def update_environment(
     environment_id: int,
     environment_data: EnvironmentUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin)
 ):
     environment = db.query(Environment).filter(
         Environment.id == environment_id
@@ -97,7 +101,8 @@ def update_environment(
 @router.delete("/{environment_id}")
 def delete_environment(
     environment_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin)
 ):
     environment = db.query(Environment).filter(
         Environment.id == environment_id

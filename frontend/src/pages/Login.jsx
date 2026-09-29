@@ -53,9 +53,10 @@ function Login() {
         return;
       }
 
-      // Save authentication token
+      // Save authentication details
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("user_email", formData.email);
+      localStorage.setItem("user_role", data.role);
 
       navigate("/home");
     } catch (err) {

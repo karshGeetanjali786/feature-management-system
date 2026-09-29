@@ -26,6 +26,12 @@ class User(Base):
         nullable=False
     )
 
+    role = Column(
+        String(20),
+        default="user",
+        nullable=False
+    )
+
     last_login = Column(
         DateTime(timezone=True),
         nullable=True

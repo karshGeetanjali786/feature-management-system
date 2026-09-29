@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import Sidebar from "../components/Sidebar";
 
 const API_URL = "http://127.0.0.1:8000";
 
 function AuditLogs() {
-
+  const { t } = useTranslation();
   const [logs, setLogs] = useState([]);
 
   // FILTER STATES
@@ -20,6 +21,10 @@ function AuditLogs() {
   // UI STATES
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // AUDIT LOG DETAILS
+  const [selectedLog, setSelectedLog] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
 
   // FETCH AUDIT LOGS
@@ -97,7 +102,7 @@ function AuditLogs() {
 
         throw new Error(
           data.detail ||
-          "Failed to fetch audit logs"
+          t("failedToFetchAuditLogs") 
         );
 
       }
@@ -117,6 +122,7 @@ function AuditLogs() {
 
   };
 
+
   // INITIAL LOAD
   useEffect(() => {
 
@@ -125,7 +131,62 @@ function AuditLogs() {
   }, []);
 
 
- 
+  // VIEW AUDIT LOG DETAILS
+  const viewLogDetails = async (logId) => {
+
+    try {
+
+      setDetailsLoading(true);
+      setError("");
+
+      const token =
+        localStorage.getItem("access_token");
+
+      const response = await fetch(
+        `${API_URL}/audit-logs/${logId}`,
+        {
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+
+        throw new Error(
+          data.detail ||
+          t("failedToFetchAuditLogDetails")
+        );
+
+      }
+
+      setSelectedLog(data);
+
+    } catch (err) {
+
+      setError(err.message);
+
+    } finally {
+
+      setDetailsLoading(false);
+
+    }
+
+  };
+
+
+  // CLOSE DETAILS
+  const closeDetails = () => {
+
+    setSelectedLog(null);
+
+  };
+
+
   // CLEAR FILTERS
   const clearFilters = () => {
 
@@ -138,7 +199,6 @@ function AuditLogs() {
     setDateFrom("");
     setDateTo("");
 
-
     setTimeout(() => {
 
       fetchLogs();
@@ -146,6 +206,7 @@ function AuditLogs() {
     }, 0);
 
   };
+
 
   // FORMAT DATE
   const formatDate = (timestamp) => {
@@ -182,6 +243,33 @@ function AuditLogs() {
   };
 
 
+  // FORMAT OLD / NEW STATE
+  const formatState = (value) => {
+
+    if (!value) {
+      return "-";
+    }
+
+    try {
+
+      const parsed =
+        JSON.parse(value);
+
+      return JSON.stringify(
+        parsed,
+        null,
+        2
+      );
+
+    } catch {
+
+      return value;
+
+    }
+
+  };
+
+
   // RENDER
   return (
 
@@ -202,16 +290,15 @@ function AuditLogs() {
           <div>
 
             <p className="eyebrow">
-              SYSTEM ACTIVITY
+              {t("systemActivity")}
             </p>
 
             <h1>
-              Audit Logs
+              {t("auditLogs")}
             </h1>
 
             <p>
-              Track feature flag changes and
-              user activities.
+              {t("auditLogsDescription")}
             </p>
 
           </div>
@@ -220,7 +307,7 @@ function AuditLogs() {
           <div className="user-box">
 
             <span>
-              Total Logs
+              {t("totalLogs")}
             </span>
 
             <strong>
@@ -242,11 +329,11 @@ function AuditLogs() {
             <div>
 
               <p className="eyebrow">
-                LOG FILTERS
+                {t("logFilters")}
               </p>
 
               <h2>
-                Filter Audit Logs
+                {t("filterAuditLogs")}
               </h2>
 
             </div>
@@ -279,8 +366,10 @@ function AuditLogs() {
             >
 
               <option value="">
-                All Actions
+                {t("allActions")}
               </option>
+
+              {/* FEATURE FLAG ACTIONS */}
 
               <option value="CREATE_FLAG">
                 CREATE_FLAG
@@ -294,6 +383,52 @@ function AuditLogs() {
                 DELETE_FLAG
               </option>
 
+              <option value="ENABLE_FLAG">
+                ENABLE_FLAG
+              </option>
+
+              <option value="DISABLE_FLAG">
+                DISABLE_FLAG
+              </option>
+
+              <option value="ROLLOUT_CHANGED">
+                ROLLOUT_CHANGED
+              </option>
+
+
+              {/* TARGETING ACTIONS */}
+
+              <option value="USER_TARGET_ADDED">
+                USER_TARGET_ADDED
+              </option>
+
+              <option value="USER_TARGET_REMOVED">
+                USER_TARGET_REMOVED
+              </option>
+
+              <option value="GROUP_TARGET_ADDED">
+                GROUP_TARGET_ADDED
+              </option>
+
+              <option value="GROUP_TARGET_REMOVED">
+                GROUP_TARGET_REMOVED
+              </option>
+
+
+              {/* ENVIRONMENT OVERRIDE ACTIONS */}
+
+              <option value="CREATE_ENVIRONMENT_OVERRIDE">
+                CREATE_ENVIRONMENT_OVERRIDE
+              </option>
+
+              <option value="OVERRIDE_CHANGED">
+                OVERRIDE_CHANGED
+              </option>
+
+              <option value="DELETE_ENVIRONMENT_OVERRIDE">
+                DELETE_ENVIRONMENT_OVERRIDE
+              </option>
+
             </select>
 
 
@@ -301,7 +436,7 @@ function AuditLogs() {
 
             <input
               type="number"
-              placeholder="User ID"
+              placeholder={t("userId")}
               value={performedBy}
               onChange={(e) =>
                 setPerformedBy(
@@ -315,7 +450,7 @@ function AuditLogs() {
 
             <input
               type="text"
-              placeholder="Flag Key"
+              placeholder={t("flagKey")}
               value={flagKey}
               onChange={(e) =>
                 setFlagKey(
@@ -329,7 +464,7 @@ function AuditLogs() {
 
             <input
               type="text"
-              placeholder="Environment"
+              placeholder={t("environment")}
               value={environment}
               onChange={(e) =>
                 setEnvironment(
@@ -364,7 +499,7 @@ function AuditLogs() {
                   fontSize: "13px",
                 }}
               >
-                Date From
+                {t("dateFrom")}
               </label>
 
               <input
@@ -394,7 +529,7 @@ function AuditLogs() {
                   fontSize: "13px",
                 }}
               >
-                Date To
+                {t("dateTo")}
               </label>
 
               <input
@@ -429,7 +564,7 @@ function AuditLogs() {
               className="primary-button"
               onClick={fetchLogs}
             >
-              Apply Filters
+              {t("applyFilters")}
             </button>
 
 
@@ -437,7 +572,7 @@ function AuditLogs() {
               className="secondary-button"
               onClick={clearFilters}
             >
-              Clear Filters
+              {t("clearFilters")}
             </button>
 
           </div>
@@ -468,7 +603,7 @@ function AuditLogs() {
             <div>
 
               <p className="eyebrow">
-                ACTIVITY HISTORY
+                {t("activityHistory")}
               </p>
 
               <h2>
@@ -480,10 +615,10 @@ function AuditLogs() {
 
             <span className="count-badge">
 
-              {logs.length} log
+              {logs.length}{" "}
               {logs.length !== 1
-                ? "s"
-                : ""}
+                ? t("logs")
+                : t("log")}
 
             </span>
 
@@ -495,7 +630,7 @@ function AuditLogs() {
           {loading ? (
 
             <p>
-              Loading audit logs...
+              {t("loadingAuditLogs")}
             </p>
 
 
@@ -507,12 +642,11 @@ function AuditLogs() {
             <div className="empty-state">
 
               <h3>
-                No Audit Logs Found
+                {t("noAuditLogsFound")}
               </h3>
 
               <p>
-                Try changing your filters
-                or perform an activity.
+                {t("noAuditLogsDescription")}
               </p>
 
             </div>
@@ -535,7 +669,7 @@ function AuditLogs() {
                   width: "100%",
                   borderCollapse:
                     "collapse",
-                  minWidth: "1100px",
+                  minWidth: "1200px",
                 }}
               >
 
@@ -543,21 +677,15 @@ function AuditLogs() {
 
                   <tr>
 
-                    <th>ID</th>
-
-                    <th>Action</th>
-
-                    <th>User</th>
-
-                    <th>Flag</th>
-
-                    <th>Environment</th>
-
-                    <th>Old Value</th>
-
-                    <th>New Value</th>
-
-                    <th>Timestamp</th>
+                    <th>{t("id")}</th>
+                    <th>{t("action")}</th>
+                    <th>{t("user")}</th>
+                    <th>{t("flag")}</th>
+                    <th>{t("environment")}</th>
+                    <th>{t("oldValue")}</th>
+                    <th>{t("newValue")}</th>
+                    <th>{t("timestamp")}</th>
+                    <th>{t("details")}</th>
 
                   </tr>
 
@@ -668,6 +796,39 @@ function AuditLogs() {
 
                         </td>
 
+
+                        {/* DETAILS BUTTON */}
+
+                        <td>
+
+                          <button
+                            className="secondary-button"
+                            onClick={() =>
+                              viewLogDetails(
+                                log.id
+                              )
+                            }
+                            disabled={
+                              detailsLoading
+                            }
+                            style={{
+                              whiteSpace:
+                                "nowrap",
+                              fontSize:
+                                "12px",
+                              padding:
+                                "8px 12px",
+                            }}
+                          >
+
+                            {detailsLoading
+                              ? t("loading")
+                              : t("viewDetails")}
+
+                          </button>
+
+                        </td>
+
                       </tr>
 
                     )
@@ -682,6 +843,262 @@ function AuditLogs() {
           )}
 
         </section>
+
+
+        {/* AUDIT LOG DETAILS */}
+
+        {selectedLog && (
+
+          <section
+            className="card"
+            style={{
+              marginTop: "24px",
+            }}
+          >
+
+            <div
+              className="section-heading"
+              style={{
+                marginBottom: "20px",
+              }}
+            >
+
+              <div>
+
+                <p className="eyebrow">
+                  {t("logDetails")}
+                </p>
+
+                <h2>
+                  {t("auditLogNumber")} #{selectedLog.id}
+                </h2>
+
+              </div>
+
+
+              <button
+                className="secondary-button"
+                onClick={closeDetails}
+              >
+                {t("close")}
+              </button>
+
+            </div>
+
+
+            {/* BASIC DETAILS */}
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(2, 1fr)",
+                gap: "16px",
+              }}
+            >
+
+
+              {/* ACTION */}
+
+              <div>
+
+                <strong>
+                  {t("action")}
+                </strong>
+
+                <p>
+                  {selectedLog.action ||
+                    "-"}
+                </p>
+
+              </div>
+
+
+              {/* USER */}
+
+              <div>
+
+                <strong>
+                  {t("user")}
+                </strong>
+
+                <p>
+                  {selectedLog.performed_by ??
+                    "-"}
+                </p>
+
+              </div>
+
+
+              {/* FLAG ID */}
+
+              <div>
+
+                <strong>
+                  {t("flagId")}
+                </strong>
+
+                <p>
+                  {selectedLog.flag_id ??
+                    "-"}
+                </p>
+
+              </div>
+
+
+              {/* ENVIRONMENT ID */}
+
+              <div>
+
+                <strong>
+                  {t("environmentId")}
+                </strong>
+
+                <p>
+                  {selectedLog.environment_id ??
+                    "-"}
+                </p>
+
+              </div>
+
+
+              {/* ENVIRONMENT */}
+
+              <div>
+
+                <strong>
+                  {t("environment")}
+                </strong>
+
+                <p>
+                  {selectedLog.environment ||
+                    "-"}
+                </p>
+
+              </div>
+
+
+              {/* TIME */}
+
+              <div>
+
+                <strong>
+                  {t("time")}
+                </strong>
+
+                <p>
+                  {formatDate(
+                    selectedLog.timestamp
+                  )}
+                </p>
+
+              </div>
+
+            </div>
+
+
+            {/* OLD STATE */}
+
+            <div
+              style={{
+                marginTop: "24px",
+              }}
+            >
+
+              <strong>
+                {t("oldState")}
+              </strong>
+
+              <pre
+                style={{
+                  marginTop: "8px",
+                  padding: "14px",
+                  background:
+                    "#f7f7f7",
+                  borderRadius:
+                    "8px",
+                  whiteSpace:
+                    "pre-wrap",
+                  wordBreak:
+                    "break-word",
+                  fontSize:
+                    "13px",
+                  maxHeight:
+                    "250px",
+                  overflowY:
+                    "auto",
+                  color: "#111",
+                }}
+              >
+                {formatState(
+                  selectedLog.old_value
+                )}
+              </pre>
+
+            </div>
+
+
+            {/* NEW STATE */}
+
+            <div
+              style={{
+                marginTop: "20px",
+              }}
+            >
+
+              <strong>
+                {t("newState")}
+              </strong>
+
+              <pre
+                style={{
+                  marginTop: "8px",
+                  padding: "14px",
+                  background:
+                    "#f7f7f7",
+                  borderRadius:
+                    "8px",
+                  whiteSpace:
+                    "pre-wrap",
+                  wordBreak:
+                    "break-word",
+                  fontSize:
+                    "13px",
+                  maxHeight:
+                    "250px",
+                  overflowY:
+                    "auto",
+                  color: "#111",
+                }}
+              >
+                {formatState(
+                  selectedLog.new_value
+                )}
+              </pre>
+
+            </div>
+
+
+            {/* CLOSE BUTTON */}
+
+            <div
+              style={{
+                marginTop: "20px",
+              }}
+            >
+
+              <button
+                className="secondary-button"
+                onClick={closeDetails}
+              >
+                {t("closeDetails")}
+              </button>
+
+            </div>
+
+          </section>
+
+        )}
 
       </main>
 

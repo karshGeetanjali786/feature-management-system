@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
+import { useTranslation } from "react-i18next";
 
 const API_BASE = "http://127.0.0.1:8000";
 
 function FeatureFlags() {
+  const { t } = useTranslation();
 
   const email = localStorage.getItem("user_email") || "User";
+  const role = localStorage.getItem("user_role") || "user";
+  const isAdmin = role === "admin";
 
   const [flags, setFlags] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
@@ -30,7 +34,7 @@ function FeatureFlags() {
       const response = await fetch(`${API_BASE}/feature-flags/`);
 
       if (!response.ok) {
-        throw new Error("Could not load feature flags.");
+        throw new Error(t("couldNotLoadFeatureFlags"));
       }
 
       const data = await response.json();
@@ -62,7 +66,7 @@ function FeatureFlags() {
     e.preventDefault();
 
     if (!formData.key.trim()) {
-      setError("Feature flag key is required.");
+      setError(t("featureFlagKeyRequired"));
       return;
     }
 
@@ -74,7 +78,7 @@ function FeatureFlags() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
         body: JSON.stringify({
           ...formData,
@@ -87,10 +91,12 @@ function FeatureFlags() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Could not create feature flag.");
+        throw new Error(
+          data.detail || t("couldNotCreateFeatureFlag")
+        );
       }
 
-      setMessage("Feature flag created successfully.");
+      setMessage(t("featureFlagCreated"));
 
       setFormData({
         key: "",
@@ -119,9 +125,9 @@ function FeatureFlags() {
         {
           method: "PUT",
           headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-},
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
           body: JSON.stringify({
             rollout_percentage: Number(percentage),
           }),
@@ -132,12 +138,15 @@ function FeatureFlags() {
 
       if (!response.ok) {
         throw new Error(
-          data.detail || "Could not update rollout percentage."
+          data.detail || t("couldNotUpdateRollout")
         );
       }
 
       setMessage(
-        `${flag.key} rollout updated to ${percentage}%.`
+        t("rolloutUpdated", {
+          key: flag.key,
+          percentage: percentage,
+        })
       );
 
       fetchFlags();
@@ -148,7 +157,7 @@ function FeatureFlags() {
 
   const deleteFlag = async (flagId) => {
     const confirmed = window.confirm(
-      "Are you sure you want to delete this feature flag?"
+      t("confirmDeleteFeatureFlag")
     );
 
     if (!confirmed) return;
@@ -164,16 +173,18 @@ function FeatureFlags() {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("access_token")}`,
           },
-        },
+        }
       );
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Could not delete feature flag.");
+        throw new Error(
+          data.detail || t("couldNotDeleteFeatureFlag")
+        );
       }
 
-      setMessage("Feature flag deleted successfully.");
+      setMessage(t("featureFlagDeleted"));
       fetchFlags();
     } catch (err) {
       setError(err.message);
@@ -187,17 +198,21 @@ function FeatureFlags() {
       <main className="dashboard-main">
         <header className="dashboard-header">
           <div>
-            <p className="eyebrow">RELEASE CONTROL</p>
+            <p className="eyebrow">
+              {t("releaseControl")}
+            </p>
 
-            <h1>Feature Flags</h1>
+            <h1>
+              {t("featureFlags")}
+            </h1>
 
             <p>
-              Manage feature flags, enablement and percentage-based rollouts.
+              {t("featureFlagsDescription")}
             </p>
           </div>
 
           <div className="user-box">
-            <span>Signed in as</span>
+            <span>{t("signedInAs")}</span>
             <strong>{email}</strong>
           </div>
         </header>
@@ -205,13 +220,17 @@ function FeatureFlags() {
         <section className="member-metrics">
           <div className="metric-card">
             <span>◈</span>
-            <p>Total Flags</p>
+
+            <p>{t("totalFlags")}</p>
+
             <h2>{flags.length}</h2>
           </div>
 
           <div className="metric-card">
             <span>✓</span>
-            <p>Enabled Flags</p>
+
+            <p>{t("enabledFlags")}</p>
+
             <h2>
               {flags.filter((flag) => flag.enabled).length}
             </h2>
@@ -219,11 +238,14 @@ function FeatureFlags() {
 
           <div className="metric-card">
             <span>%</span>
-            <p>Rollout Enabled</p>
+
+            <p>{t("rolloutEnabled")}</p>
+
             <h2>
               {
                 flags.filter(
-                  (flag) => Number(flag.rollout_percentage) > 0
+                  (flag) =>
+                    Number(flag.rollout_percentage) > 0
                 ).length
               }
             </h2>
@@ -232,8 +254,13 @@ function FeatureFlags() {
 
         <section className="flags-toolbar">
           <div>
-            <p className="eyebrow">FLAG DIRECTORY</p>
-            <h2>All Feature Flags</h2>
+            <p className="eyebrow">
+              {t("flagDirectory")}
+            </p>
+
+            <h2>
+              {t("allFeatureFlags")}
+            </h2>
           </div>
 
           <button
@@ -244,7 +271,7 @@ function FeatureFlags() {
               setMessage("");
             }}
           >
-            + Create Feature Flag
+            + {t("createFeatureFlag")}
           </button>
         </section>
 
@@ -264,10 +291,12 @@ function FeatureFlags() {
           <section className="empty-state flags-empty">
             <div className="empty-icon">◈</div>
 
-            <h3>No feature flags found</h3>
+            <h3>
+              {t("noFeatureFlags")}
+            </h3>
 
             <p>
-              Create a feature flag to start managing rollout behaviour.
+              {t("featureFlagEmptyText")}
             </p>
           </section>
         ) : (
@@ -276,11 +305,11 @@ function FeatureFlags() {
               <table className="flags-table">
                 <thead>
                   <tr>
-                    <th>FLAG</th>
-                    <th>STATUS</th>
-                    <th>ROLLOUT</th>
-                    <th>OWNER</th>
-                    <th>ACTION</th>
+                    <th>{t("flag")}</th>
+                    <th>{t("status")}</th>
+                    <th>{t("rollout")}</th>
+                    <th>{t("owner")}</th>
+                    <th>{t("action")}</th>
                   </tr>
                 </thead>
 
@@ -289,10 +318,14 @@ function FeatureFlags() {
                     <tr key={flag.id}>
                       <td>
                         <div className="flag-name-cell">
-                          <div className="rule-icon">⚑</div>
+                          <div className="rule-icon">
+                            ⚑
+                          </div>
 
                           <div>
-                            <strong>{flag.key}</strong>
+                            <strong>
+                              {flag.key}
+                            </strong>
 
                             <span>
                               ID #{flag.id} · {flag.type}
@@ -309,7 +342,9 @@ function FeatureFlags() {
                               : "disabled-badge"
                           }
                         >
-                          {flag.enabled ? "Enabled" : "Disabled"}
+                          {flag.enabled
+                            ? t("enabled")
+                            : t("disabled")}
                         </span>
                       </td>
 
@@ -321,38 +356,52 @@ function FeatureFlags() {
                             </strong>
                           </div>
 
-                          <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={flag.rollout_percentage}
-                            onChange={(e) => {
-                              const value = Number(e.target.value);
+                          {isAdmin ? (
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={
+                                flag.rollout_percentage
+                              }
+                              onChange={(e) => {
+                                const value =
+                                  Number(e.target.value);
 
-                              setFlags((prev) =>
-                                prev.map((item) =>
-                                  item.id === flag.id
-                                    ? {
-                                        ...item,
-                                        rollout_percentage: value,
-                                      }
-                                    : item
+                                setFlags((prev) =>
+                                  prev.map((item) =>
+                                    item.id === flag.id
+                                      ? {
+                                          ...item,
+                                          rollout_percentage:
+                                            value,
+                                        }
+                                      : item
+                                  )
+                                );
+                              }}
+                              onMouseUp={(e) =>
+                                updateRollout(
+                                  flag,
+                                  Number(
+                                    e.target.value
+                                  )
                                 )
-                              );
-                            }}
-                            onMouseUp={(e) =>
-                              updateRollout(
-                                flag,
-                                Number(e.target.value)
-                              )
-                            }
-                            onTouchEnd={(e) =>
-                              updateRollout(
-                                flag,
-                                Number(e.target.value)
-                              )
-                            }
-                          />
+                              }
+                              onTouchEnd={(e) =>
+                                updateRollout(
+                                  flag,
+                                  Number(
+                                    e.target.value
+                                  )
+                                )
+                              }
+                            />
+                          ) : (
+                            <span className="owner-text">
+                              {t("viewOnly")}
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -363,12 +412,16 @@ function FeatureFlags() {
                       </td>
 
                       <td>
-                        <button
-                          className="action-button delete-button"
-                          onClick={() => deleteFlag(flag.id)}
-                        >
-                          Delete
-                        </button>
+                        {isAdmin && (
+                          <button
+                            className="action-button delete-button"
+                            onClick={() =>
+                              deleteFlag(flag.id)
+                            }
+                          >
+                            {t("delete")}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -381,21 +434,32 @@ function FeatureFlags() {
         {showCreate && (
           <div
             className="modal-overlay"
-            onClick={() => setShowCreate(false)}
+            onClick={() =>
+              setShowCreate(false)
+            }
           >
             <div
               className="modal-card flag-modal"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) =>
+                e.stopPropagation()
+              }
             >
               <div className="modal-header">
                 <div>
-                  <p className="eyebrow">NEW FLAG</p>
-                  <h2>Create Feature Flag</h2>
+                  <p className="eyebrow">
+                    {t("newFlag")}
+                  </p>
+
+                  <h2>
+                    {t("createFeatureFlag")}
+                  </h2>
                 </div>
 
                 <button
                   className="modal-close"
-                  onClick={() => setShowCreate(false)}
+                  onClick={() =>
+                    setShowCreate(false)
+                  }
                 >
                   ×
                 </button>
@@ -404,7 +468,9 @@ function FeatureFlags() {
               <form onSubmit={createFlag}>
                 <div className="two-column-form">
                   <div className="form-group">
-                    <label>Flag Key</label>
+                    <label>
+                      {t("flagKey")}
+                    </label>
 
                     <input
                       type="text"
@@ -416,27 +482,41 @@ function FeatureFlags() {
                   </div>
 
                   <div className="form-group">
-                    <label>Type</label>
+                    <label>
+                      {t("type")}
+                    </label>
 
                     <select
                       name="type"
                       value={formData.type}
                       onChange={handleChange}
                     >
-                      <option value="boolean">Boolean</option>
-                      <option value="string">String</option>
-                      <option value="number">Number</option>
+                      <option value="boolean">
+                        Boolean
+                      </option>
+
+                      <option value="string">
+                        String
+                      </option>
+
+                      <option value="number">
+                        Number
+                      </option>
                     </select>
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label>Description</label>
+                  <label>
+                    {t("description")}
+                  </label>
 
                   <input
                     type="text"
                     name="description"
-                    placeholder="What does this flag control?"
+                    placeholder={t(
+                      "flagDescriptionPlaceholder"
+                    )}
                     value={formData.description}
                     onChange={handleChange}
                   />
@@ -444,7 +524,9 @@ function FeatureFlags() {
 
                 <div className="two-column-form">
                   <div className="form-group">
-                    <label>Owner Team</label>
+                    <label>
+                      {t("ownerTeam")}
+                    </label>
 
                     <input
                       type="text"
@@ -456,7 +538,9 @@ function FeatureFlags() {
                   </div>
 
                   <div className="form-group">
-                    <label>Rollout Percentage</label>
+                    <label>
+                      {t("rolloutPercentage")}
+                    </label>
 
                     <div className="create-rollout-control">
                       <input
@@ -464,12 +548,16 @@ function FeatureFlags() {
                         name="rollout_percentage"
                         min="0"
                         max="100"
-                        value={formData.rollout_percentage}
+                        value={
+                          formData.rollout_percentage
+                        }
                         onChange={handleChange}
                       />
 
                       <strong>
-                        {formData.rollout_percentage}%
+                        {
+                          formData.rollout_percentage
+                        }%
                       </strong>
                     </div>
                   </div>
@@ -480,10 +568,13 @@ function FeatureFlags() {
                     <input
                       type="checkbox"
                       name="enabled"
-                      checked={formData.enabled}
+                      checked={
+                        formData.enabled
+                      }
                       onChange={handleChange}
                     />
-                    Enable this feature flag
+
+                    {t("enableFeatureFlag")}
                   </label>
                 </div>
 
@@ -491,16 +582,18 @@ function FeatureFlags() {
                   <button
                     type="button"
                     className="secondary-button"
-                    onClick={() => setShowCreate(false)}
+                    onClick={() =>
+                      setShowCreate(false)
+                    }
                   >
-                    Cancel
+                    {t("cancel")}
                   </button>
 
                   <button
                     type="submit"
                     className="primary-button"
                   >
-                    Create Flag
+                    {t("createFlag")}
                   </button>
                 </div>
               </form>

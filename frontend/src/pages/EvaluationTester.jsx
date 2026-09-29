@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import Sidebar from "../components/Sidebar";
 
 const API_BASE = "http://127.0.0.1:8000";
 
 function EvaluationTester() {
+  const { t } = useTranslation();
 
   const email = localStorage.getItem("user_email") || "User";
 
@@ -19,16 +21,50 @@ function EvaluationTester() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("access_token");
+
+    return token
+      ? {
+          Authorization: `Bearer ${token}`,
+        }
+      : {};
+  };
+
   useEffect(() => {
     const loadData = async () => {
       try {
         setError("");
 
+        const token = localStorage.getItem("access_token");
+
+        if (!token) {
+          setError(t("notAuthenticated"));
+          return;
+        }
+
+        const authHeaders = {
+          Authorization: `Bearer ${token}`,
+        };
+
         const [flagsResponse, environmentsResponse] =
           await Promise.all([
-            fetch(`${API_BASE}/feature-flags/`),
-            fetch(`${API_BASE}/environments/`),
+            fetch(`${API_BASE}/feature-flags/`, {
+              headers: authHeaders,
+            }),
+            fetch(`${API_BASE}/environments/`, {
+              headers: authHeaders,
+            }),
           ]);
+
+        if (
+          flagsResponse.status === 401 ||
+          environmentsResponse.status === 401
+        ) {
+          setError(t("sessionExpired"));
+          localStorage.removeItem("access_token");
+          return;
+        }
 
         if (flagsResponse.ok) {
           const flagsData = await flagsResponse.json();
@@ -51,22 +87,18 @@ function EvaluationTester() {
           }
         }
       } catch (err) {
-        setError(
-          "Could not load feature flags or environments."
-        );
+        setError(t("couldNotLoadFlagsEnvironments"));
       }
     };
 
     loadData();
-  }, []);
+  }, [t]);
 
   const evaluateFlag = async (e) => {
     e.preventDefault();
 
     if (!flagKey || !environment || !userId) {
-      setError(
-        "Please select a flag, environment and enter User ID."
-      );
+      setError(t("selectFlagEnvironmentUser"));
       return;
     }
 
@@ -75,7 +107,13 @@ function EvaluationTester() {
       setError("");
       setResult(null);
 
-      // Convert comma-separated groups into an array
+      const token = localStorage.getItem("access_token");
+
+      if (!token) {
+        setError(t("notAuthenticated"));
+        return;
+      }
+
       const groupList = groups
         .split(",")
         .map((group) => group.trim())
@@ -87,6 +125,7 @@ function EvaluationTester() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            ...getAuthHeaders(),
           },
           body: JSON.stringify({
             flag_key: flagKey,
@@ -99,9 +138,15 @@ function EvaluationTester() {
 
       const data = await response.json();
 
+      if (response.status === 401) {
+        setError(t("sessionExpired"));
+        localStorage.removeItem("access_token");
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(
-          data.detail || "Could not evaluate feature flag."
+          data.detail || t("couldNotEvaluateFlag")
         );
       }
 
@@ -115,39 +160,36 @@ function EvaluationTester() {
 
   return (
     <div className="dashboard-page">
-      <Sidebar /> 
-
-      {/* MAIN CONTENT */}
+      <Sidebar />
 
       <main className="dashboard-main">
-
-        {/* HEADER */}
-
         <header className="dashboard-header">
           <div>
-            <p className="eyebrow">FLAG EVALUATION</p>
+            <p className="eyebrow">
+              {t("flagEvaluation")}
+            </p>
 
-            <h1>Evaluation Tester</h1>
+            <h1>{t("evaluationTester")}</h1>
 
             <p>
-              Test how a feature flag behaves for a specific
-              user and targeting context.
+              {t("evaluationTesterDescription")}
             </p>
           </div>
 
           <div className="user-box">
-            <span>Signed in as</span>
+            <span>{t("signedInAs")}</span>
             <strong>{email}</strong>
           </div>
         </header>
 
-        {/* TEST CONFIGURATION */}
-
         <section className="evaluation-section">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">TEST CONFIGURATION</p>
-              <h2>Evaluate Feature Flag</h2>
+              <p className="eyebrow">
+                {t("testConfiguration")}
+              </p>
+
+              <h2>{t("evaluateFeatureFlag")}</h2>
             </div>
           </div>
 
@@ -155,17 +197,17 @@ function EvaluationTester() {
             className="evaluation-form"
             onSubmit={evaluateFlag}
           >
-            {/* FEATURE FLAG */}
-
             <div className="evaluation-field">
-              <label>Feature Flag</label>
+              <label>{t("featureFlag")}</label>
 
               <select
                 value={flagKey}
-                onChange={(e) => setFlagKey(e.target.value)}
+                onChange={(e) =>
+                  setFlagKey(e.target.value)
+                }
               >
                 <option value="">
-                  Select feature flag
+                  {t("selectFeatureFlag")}
                 </option>
 
                 {flags.map((flag) => (
@@ -179,10 +221,8 @@ function EvaluationTester() {
               </select>
             </div>
 
-            {/* ENVIRONMENT */}
-
             <div className="evaluation-field">
-              <label>Environment</label>
+              <label>{t("environment")}</label>
 
               <select
                 value={environment}
@@ -191,7 +231,7 @@ function EvaluationTester() {
                 }
               >
                 <option value="">
-                  Select environment
+                  {t("selectEnvironment")}
                 </option>
 
                 {environments.map((env) => (
@@ -205,14 +245,12 @@ function EvaluationTester() {
               </select>
             </div>
 
-            {/* USER ID */}
-
             <div className="evaluation-field">
-              <label>User ID</label>
+              <label>{t("userId")}</label>
 
               <input
                 type="text"
-                placeholder="Example: user_101"
+                placeholder={t("userIdExample")}
                 value={userId}
                 onChange={(e) =>
                   setUserId(e.target.value)
@@ -220,14 +258,12 @@ function EvaluationTester() {
               />
             </div>
 
-            {/* GROUPS */}
-
             <div className="evaluation-field">
-              <label>Groups</label>
+              <label>{t("groups")}</label>
 
               <input
                 type="text"
-                placeholder="Example: beta_users, internal_team"
+                placeholder={t("groupsExample")}
                 value={groups}
                 onChange={(e) =>
                   setGroups(e.target.value)
@@ -235,16 +271,14 @@ function EvaluationTester() {
               />
             </div>
 
-            {/* EVALUATE BUTTON */}
-
             <button
               type="submit"
               className="primary-button evaluation-button"
               disabled={loading}
             >
               {loading
-                ? "Evaluating..."
-                : "Evaluate Flag"}
+                ? t("evaluating")
+                : t("evaluateFlag")}
             </button>
           </form>
 
@@ -255,47 +289,37 @@ function EvaluationTester() {
           )}
         </section>
 
-        {/* RESULT */}
-
         {result && (
           <section className="evaluation-result-section">
-
             <div className="section-heading">
               <div>
                 <p className="eyebrow">
-                  EVALUATION RESULT
+                  {t("evaluationResult")}
                 </p>
 
-                <h2>Decision Details</h2>
+                <h2>{t("decisionDetails")}</h2>
               </div>
             </div>
 
             <div className="result-grid">
-
-              {/* FEATURE FLAG */}
-
               <div className="result-card">
-                <span>Feature Flag</span>
+                <span>{t("featureFlag")}</span>
 
                 <strong>
                   {result.flag_key}
                 </strong>
               </div>
 
-              {/* ROLLOUT */}
-
               <div className="result-card">
-                <span>Rollout</span>
+                <span>{t("rollout")}</span>
 
                 <strong>
                   {result.rollout_percentage}%
                 </strong>
               </div>
 
-              {/* BUCKET */}
-
               <div className="result-card">
-                <span>Bucket</span>
+                <span>{t("bucket")}</span>
 
                 <strong>
                   {result.bucket !== null &&
@@ -305,17 +329,13 @@ function EvaluationTester() {
                 </strong>
               </div>
 
-              {/* REASON */}
-
               <div className="result-card">
-                <span>Reason</span>
+                <span>{t("reason")}</span>
 
                 <strong className="reason-text">
                   {result.reason}
                 </strong>
               </div>
-
-              {/* FINAL RESULT */}
 
               <div
                 className={
@@ -324,54 +344,49 @@ function EvaluationTester() {
                     : "result-card result-disabled"
                 }
               >
-                <span>Final Result</span>
+                <span>{t("finalResult")}</span>
 
                 <strong>
                   {result.enabled
-                    ? "✓ Enabled"
-                    : "✕ Disabled"}
+                    ? `✓ ${t("enabled")}`
+                    : `✕ ${t("disabled")}`}
                 </strong>
               </div>
             </div>
 
-            {/* EXPLANATION */}
-
             <div className="evaluation-explanation">
               <p className="eyebrow">
-                HOW IT WAS DECIDED
+                {t("howItWasDecided")}
               </p>
 
               <p>
-                User{" "}
+                {t("userEvaluatedFor")}{" "}
                 <strong>{userId}</strong>{" "}
-                was evaluated for{" "}
+                {t("wasEvaluatedFor")}{" "}
                 <strong>{result.flag_key}</strong>.
               </p>
 
               <p>
-                Evaluation reason:
-                <strong> {result.reason}</strong>.
+                {t("evaluationReason")}{" "}
+                <strong>{result.reason}</strong>.
               </p>
 
               {result.bucket !== null &&
               result.bucket !== undefined ? (
                 <p>
-                  Deterministic bucket:
+                  {t("deterministicBucket")}{" "}
                   <strong>
-                    {" "}
                     {result.bucket}
-                  </strong>
-                  {" "}and rollout:
+                  </strong>{" "}
+                  {t("andRollout")}{" "}
                   <strong>
-                    {" "}
                     {result.rollout_percentage}%
                   </strong>
                   .
                 </p>
               ) : (
                 <p>
-                  No rollout bucket was required for
-                  this evaluation.
+                  {t("noRolloutBucket")}
                 </p>
               )}
             </div>

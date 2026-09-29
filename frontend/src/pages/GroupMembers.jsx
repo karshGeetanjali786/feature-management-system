@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import Sidebar from "../components/Sidebar";
 
 const API_BASE = "http://127.0.0.1:8000";
@@ -7,8 +8,11 @@ const API_BASE = "http://127.0.0.1:8000";
 function GroupMembers() {
   const navigate = useNavigate();
   const { groupId } = useParams();
+  const { t } = useTranslation();
 
   const email = localStorage.getItem("user_email") || "User";
+  const role = localStorage.getItem("user_role") || "user";
+  const isAdmin = role === "admin";
 
   const [group, setGroup] = useState(null);
   const [members, setMembers] = useState([]);
@@ -26,7 +30,7 @@ function GroupMembers() {
       );
 
       if (!groupResponse.ok) {
-        throw new Error("Group not found.");
+        throw new Error(t("groupNotFound"));
       }
 
       const groupData = await groupResponse.json();
@@ -37,7 +41,7 @@ function GroupMembers() {
       );
 
       if (!membersResponse.ok) {
-        throw new Error("Could not load group members.");
+        throw new Error(t("couldNotLoadGroupMembers"));
       }
 
       const membersData = await membersResponse.json();
@@ -55,7 +59,7 @@ function GroupMembers() {
     e.preventDefault();
 
     if (!userId.trim()) {
-      setError("Please enter a User ID.");
+      setError(t("userIdRequired"));
       return;
     }
 
@@ -67,16 +71,23 @@ function GroupMembers() {
         `${API_BASE}/groups/${groupId}/users/${userId}`,
         {
           method: "POST",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem(
+              "access_token"
+            )}`,
+          },
         }
       );
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Could not add user.");
+        throw new Error(
+          data.detail || t("couldNotAddUser")
+        );
       }
 
-      setMessage("User added successfully.");
+      setMessage(t("userAddedSuccessfully"));
       setUserId("");
 
       fetchGroupData();
@@ -87,7 +98,7 @@ function GroupMembers() {
 
   const removeMember = async (memberId) => {
     const confirmed = window.confirm(
-      "Are you sure you want to remove this user?"
+      t("confirmRemoveUser")
     );
 
     if (!confirmed) return;
@@ -100,16 +111,23 @@ function GroupMembers() {
         `${API_BASE}/groups/${groupId}/users/${memberId}`,
         {
           method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem(
+              "access_token"
+            )}`,
+          },
         }
       );
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Could not remove user.");
+        throw new Error(
+          data.detail || t("couldNotRemoveUser")
+        );
       }
 
-      setMessage("User removed successfully.");
+      setMessage(t("userRemovedSuccessfully"));
 
       fetchGroupData();
     } catch (err) {
@@ -128,22 +146,26 @@ function GroupMembers() {
               className="back-button"
               onClick={() => navigate("/groups")}
             >
-              ← Back to Groups
+              ← {t("backToGroups")}
             </button>
 
-            <p className="eyebrow">GROUP MEMBERSHIP</p>
+            <p className="eyebrow">
+              {t("groupMembership")}
+            </p>
 
             <h1>
-              {group ? group.group_name : "Group Members"}
+              {group
+                ? group.group_name
+                : t("groupMembers")}
             </h1>
 
             <p>
-              Manage users belonging to this targeting group.
+              {t("groupMembersDescription")}
             </p>
           </div>
 
           <div className="user-box">
-            <span>Signed in as</span>
+            <span>{t("signedInAs")}</span>
             <strong>{email}</strong>
           </div>
         </header>
@@ -151,58 +173,70 @@ function GroupMembers() {
         <section className="member-metrics">
           <div className="metric-card">
             <span>◈</span>
-            <p>Group ID</p>
+            <p>{t("groupId")}</p>
             <h2>#{groupId}</h2>
           </div>
 
           <div className="metric-card">
             <span>👥</span>
-            <p>Total Members</p>
+            <p>{t("totalMembers")}</p>
             <h2>{members.length}</h2>
           </div>
 
           <div className="metric-card">
             <span>✓</span>
-            <p>Status</p>
-            <h2 className="active-status">Active</h2>
+            <p>{t("status")}</p>
+            <h2 className="active-status">
+              {t("active")}
+            </h2>
           </div>
         </section>
 
         <section className="members-section">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">MEMBERSHIP DIRECTORY</p>
-              <h2>Group Members</h2>
+              <p className="eyebrow">
+                {t("membershipDirectory")}
+              </p>
+
+              <h2>{t("groupMembers")}</h2>
             </div>
 
             <span className="count-badge">
-              {members.length} member
-              {members.length !== 1 ? "s" : ""}
+              {members.length}{" "}
+              {members.length !== 1
+                ? t("members")
+                : t("member")}
             </span>
           </div>
 
-          <form
-            className="add-member-form"
-            onSubmit={addMember}
-          >
-            <div className="member-input-wrapper">
-              <label>User ID</label>
-
-              <input
-                type="number"
-                placeholder="Enter User ID"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="primary-button add-member-button"
+          {/* ADMIN ONLY: ADD USER */}
+          {isAdmin && (
+            <form
+              className="add-member-form"
+              onSubmit={addMember}
             >
-              + Add User
-            </button>
-          </form>
+              <div className="member-input-wrapper">
+                <label>{t("userId")}</label>
+
+                <input
+                  type="number"
+                  placeholder={t("enterUserId")}
+                  value={userId}
+                  onChange={(e) =>
+                    setUserId(e.target.value)
+                  }
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="primary-button add-member-button"
+              >
+                + {t("addUser")}
+              </button>
+            </form>
+          )}
 
           {message && (
             <div className="status-message success-message">
@@ -220,11 +254,12 @@ function GroupMembers() {
             <div className="empty-state">
               <div className="empty-icon">👥</div>
 
-              <h3>No members yet</h3>
+              <h3>{t("noMembersYet")}</h3>
 
               <p>
-                Add a user to this group to use it for
-                feature targeting.
+                {isAdmin
+                  ? t("adminNoMembersDescription")
+                  : t("userNoMembersDescription")}
               </p>
             </div>
           ) : (
@@ -232,11 +267,13 @@ function GroupMembers() {
               <table className="members-table">
                 <thead>
                   <tr>
-                    <th>USER</th>
-                    <th>USER ID</th>
-                    <th>EMAIL</th>
-                    <th>STATUS</th>
-                    <th>ACTION</th>
+                    <th>{t("user").toUpperCase()}</th>
+                    <th>{t("userId").toUpperCase()}</th>
+                    <th>{t("email").toUpperCase()}</th>
+                    <th>{t("status").toUpperCase()}</th>
+                    {isAdmin && (
+                      <th>{t("action").toUpperCase()}</th>
+                    )}
                   </tr>
                 </thead>
 
@@ -257,7 +294,7 @@ function GroupMembers() {
                             </strong>
 
                             <span>
-                              Group member
+                              {t("groupMember")}
                             </span>
                           </div>
                         </div>
@@ -277,20 +314,23 @@ function GroupMembers() {
 
                       <td>
                         <span className="active-badge">
-                          Active
+                          {t("active")}
                         </span>
                       </td>
 
-                      <td>
-                        <button
-                          className="action-button delete-button"
-                          onClick={() =>
-                            removeMember(member.id)
-                          }
-                        >
-                          Remove
-                        </button>
-                      </td>
+                      {/* ADMIN ONLY: REMOVE USER */}
+                      {isAdmin && (
+                        <td>
+                          <button
+                            className="action-button delete-button"
+                            onClick={() =>
+                              removeMember(member.id)
+                            }
+                          >
+                            {t("remove")}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

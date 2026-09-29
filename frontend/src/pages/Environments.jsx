@@ -1,17 +1,22 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import Sidebar from "../components/Sidebar";
 
 const API_URL = "http://127.0.0.1:8000";
 
 function Environments() {
+  const { t } = useTranslation();
 
   const [environments, setEnvironments] = useState([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
   const email = localStorage.getItem("user_email") || "User";
+  const role = localStorage.getItem("user_role") || "user";
+  const isAdmin = role === "admin";
 
   const loadEnvironments = async () => {
     try {
@@ -21,7 +26,7 @@ function Environments() {
       const response = await fetch(`${API_URL}/environments/`);
 
       if (!response.ok) {
-        throw new Error("Failed to load environments");
+        throw new Error(t("couldNotLoadEnvironments"));
       }
 
       const data = await response.json();
@@ -41,17 +46,19 @@ function Environments() {
     e.preventDefault();
 
     if (!name.trim()) {
-      setError("Environment name is required");
+      setError(t("environmentNameRequired"));
       return;
     }
 
     try {
       setError("");
+      setMessage("");
 
       const response = await fetch(`${API_URL}/environments/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
         body: JSON.stringify({
           name: name.trim(),
@@ -62,12 +69,15 @@ function Environments() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Failed to create environment");
+        throw new Error(
+          data.detail || t("couldNotCreateEnvironment")
+        );
       }
 
       setEnvironments((prev) => [...prev, data]);
       setName("");
       setDescription("");
+      setMessage(t("environmentCreated"));
     } catch (err) {
       setError(err.message);
     }
@@ -75,30 +85,38 @@ function Environments() {
 
   const handleDelete = async (environmentId) => {
     const confirmed = window.confirm(
-      "Are you sure you want to delete this environment?"
+      t("confirmDeleteEnvironment")
     );
 
     if (!confirmed) return;
 
     try {
       setError("");
+      setMessage("");
 
       const response = await fetch(
         `${API_URL}/environments/${environmentId}`,
         {
           method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
         }
       );
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Failed to delete environment");
+        throw new Error(
+          data.detail || t("couldNotDeleteEnvironment")
+        );
       }
 
       setEnvironments((prev) =>
         prev.filter((environment) => environment.id !== environmentId)
       );
+
+      setMessage(t("environmentDeleted"));
     } catch (err) {
       setError(err.message);
     }
@@ -111,22 +129,27 @@ function Environments() {
       <main className="dashboard-main">
         <header className="dashboard-header">
           <div>
-            <p className="eyebrow">CONFIGURATION</p>
-            <h1>Environments</h1>
-            <p>
-              Create and manage environments used for feature flag
-              configuration.
-            </p>
+            <p className="eyebrow">{t("configuration")}</p>
+
+            <h1>{t("environments")}</h1>
+
+            <p>{t("environmentsDescription")}</p>
           </div>
 
           <div className="user-box">
-            <span>Signed in as</span>
+            <span>{t("signedInAs")}</span>
             <strong>{email}</strong>
           </div>
         </header>
 
+        {message && (
+          <div className="status-message success-message">
+            {message}
+          </div>
+        )}
+
         {error && (
-          <div className="error-message">
+          <div className="status-message error-message">
             {error}
           </div>
         )}
@@ -134,39 +157,41 @@ function Environments() {
         <section className="metrics-grid">
           <div className="metric-card">
             <span>▣</span>
-            <p>Total Environments</p>
+            <p>{t("totalEnvironments")}</p>
             <h2>{environments.length}</h2>
           </div>
 
           <div className="metric-card">
             <span>✓</span>
-            <p>Available</p>
+            <p>{t("available")}</p>
             <h2>{environments.length}</h2>
           </div>
         </section>
 
+        {/* CREATE ENVIRONMENT */}
         <section className="welcome-card">
-          <p className="eyebrow">CREATE ENVIRONMENT</p>
-          <h2>Add Environment</h2>
+          <p className="eyebrow">{t("createEnvironment")}</p>
+
+          <h2>{t("addEnvironment")}</h2>
 
           <form onSubmit={handleCreate}>
             <div className="form-group">
-              <label>Environment Name</label>
+              <label>{t("environmentName")}</label>
 
               <input
                 type="text"
-                placeholder="e.g. development"
+                placeholder={t("environmentNamePlaceholder")}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
 
             <div className="form-group">
-              <label>Description</label>
+              <label>{t("description")}</label>
 
               <input
                 type="text"
-                placeholder="Environment description"
+                placeholder={t("environmentDescriptionPlaceholder")}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
@@ -176,19 +201,21 @@ function Environments() {
               type="submit"
               className="primary-button dashboard-button"
             >
-              + Create Environment
+              + {t("createEnvironmentButton")}
             </button>
           </form>
         </section>
 
+        {/* ENVIRONMENT DIRECTORY */}
         <section className="welcome-card">
-          <p className="eyebrow">ENVIRONMENT DIRECTORY</p>
-          <h2>All Environments</h2>
+          <p className="eyebrow">{t("environmentDirectory")}</p>
+
+          <h2>{t("allEnvironments")}</h2>
 
           {loading ? (
-            <p>Loading environments...</p>
+            <p>{t("loadingEnvironments")}</p>
           ) : environments.length === 0 ? (
-            <p>No environments found.</p>
+            <p>{t("noEnvironmentsFound")}</p>
           ) : (
             <div className="environment-list">
               {environments.map((environment) => (
@@ -201,18 +228,21 @@ function Environments() {
 
                     <p>
                       {environment.description ||
-                        "No description provided"}
+                        t("noDescriptionProvided")}
                     </p>
                   </div>
 
-                  <button
-                    className="logout-button"
-                    onClick={() =>
-                      handleDelete(environment.id)
-                    }
-                  >
-                    Delete
-                  </button>
+                  {/* ADMIN ONLY DELETE */}
+                  {isAdmin && (
+                    <button
+                      className="logout-button"
+                      onClick={() =>
+                        handleDelete(environment.id)
+                      }
+                    >
+                      {t("delete")}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

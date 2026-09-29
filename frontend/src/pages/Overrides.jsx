@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import Sidebar from "../components/Sidebar";
 
 const API_URL = "http://127.0.0.1:8000";
 
 function Overrides() {
+  const { t } = useTranslation();
 
   const [overrides, setOverrides] = useState([]);
   const [flags, setFlags] = useState([]);
@@ -17,31 +19,50 @@ function Overrides() {
   const [error, setError] = useState("");
 
   const email = localStorage.getItem("user_email") || "User";
+  const role = localStorage.getItem("user_role") || "user";
+  const isAdmin = role === "admin";
+
+  const token = localStorage.getItem("access_token");
+
+  const authHeaders = token
+    ? {
+        Authorization: `Bearer ${token}`,
+      }
+    : {};
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const [flagsResponse, environmentsResponse] =
+      const [flagsResponse, environmentsResponse, overridesResponse] =
         await Promise.all([
-          fetch(`${API_URL}/feature-flags/`),
-          fetch(`${API_URL}/environments/`),
+          fetch(`${API_URL}/feature-flags/`, {
+            headers: authHeaders,
+          }),
+          fetch(`${API_URL}/environments/`, {
+            headers: authHeaders,
+          }),
+          fetch(`${API_URL}/environment-overrides/`, {
+            headers: authHeaders,
+          }),
         ]);
 
-      if (!flagsResponse.ok || !environmentsResponse.ok) {
-        throw new Error("Failed to load data");
+      if (
+        !flagsResponse.ok ||
+        !environmentsResponse.ok ||
+        !overridesResponse.ok
+      ) {
+        throw new Error(t("couldNotLoadOverridesData"));
       }
 
       const flagsData = await flagsResponse.json();
       const environmentsData = await environmentsResponse.json();
+      const overridesData = await overridesResponse.json();
 
       setFlags(flagsData);
       setEnvironments(environmentsData);
-
-      // Load existing overrides
-      // Backend currently supports create/update/delete,
-      // so we will keep the list locally after operations.
+      setOverrides(overridesData);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -57,7 +78,7 @@ function Overrides() {
     e.preventDefault();
 
     if (!flagId || !environmentId) {
-      setError("Please select a feature flag and environment");
+      setError(t("selectFlagAndEnvironment"));
       return;
     }
 
@@ -70,6 +91,7 @@ function Overrides() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            ...authHeaders,
           },
           body: JSON.stringify({
             flag_id: Number(flagId),
@@ -83,7 +105,7 @@ function Overrides() {
 
       if (!response.ok) {
         throw new Error(
-          data.detail || "Failed to create override"
+          data.detail || t("couldNotCreateOverride")
         );
       }
 
@@ -92,6 +114,8 @@ function Overrides() {
       setFlagId("");
       setEnvironmentId("");
       setValue(true);
+
+      setError("");
     } catch (err) {
       setError(err.message);
     }
@@ -99,7 +123,7 @@ function Overrides() {
 
   const handleDelete = async (overrideId) => {
     const confirmed = window.confirm(
-      "Are you sure you want to delete this override?"
+      t("confirmDeleteOverride")
     );
 
     if (!confirmed) return;
@@ -111,6 +135,9 @@ function Overrides() {
         `${API_URL}/environment-overrides/${overrideId}`,
         {
           method: "DELETE",
+          headers: {
+            ...authHeaders,
+          },
         }
       );
 
@@ -118,7 +145,7 @@ function Overrides() {
 
       if (!response.ok) {
         throw new Error(
-          data.detail || "Failed to delete override"
+          data.detail || t("couldNotDeleteOverride")
         );
       }
 
@@ -132,7 +159,8 @@ function Overrides() {
 
   const getFlagName = (id) => {
     const flag = flags.find((item) => item.id === id);
-    return flag ? flag.key : `Flag #${id}`;
+
+    return flag ? flag.key : `${t("flag")} #${id}`;
   };
 
   const getEnvironmentName = (id) => {
@@ -142,7 +170,7 @@ function Overrides() {
 
     return environment
       ? environment.name
-      : `Environment #${id}`;
+      : `${t("environment")} #${id}`;
   };
 
   return (
@@ -152,17 +180,15 @@ function Overrides() {
       <main className="dashboard-main">
         <header className="dashboard-header">
           <div>
-            <p className="eyebrow">CONFIGURATION</p>
+            <p className="eyebrow">{t("configuration")}</p>
 
-            <h1>Environment Overrides</h1>
+            <h1>{t("environmentOverrides")}</h1>
 
-            <p>
-              Control feature flag values for specific environments.
-            </p>
+            <p>{t("environmentOverridesDescription")}</p>
           </div>
 
           <div className="user-box">
-            <span>Signed in as</span>
+            <span>{t("signedInAs")}</span>
             <strong>{email}</strong>
           </div>
         </header>
@@ -177,7 +203,7 @@ function Overrides() {
           <div className="metric-card">
             <span>⚙</span>
 
-            <p>Total Overrides</p>
+            <p>{t("totalOverrides")}</p>
 
             <h2>{overrides.length}</h2>
           </div>
@@ -185,103 +211,107 @@ function Overrides() {
           <div className="metric-card">
             <span>✓</span>
 
-            <p>Active Configuration</p>
+            <p>{t("activeConfiguration")}</p>
 
             <h2>{overrides.length}</h2>
           </div>
         </section>
 
-        <section className="welcome-card">
-          <p className="eyebrow">CREATE OVERRIDE</p>
+        {/* CREATE OVERRIDE - ADMIN ONLY */}
+        {isAdmin && (
+          <section className="welcome-card">
+            <p className="eyebrow">{t("createOverride")}</p>
 
-          <h2>Add Environment Override</h2>
+            <h2>{t("addEnvironmentOverride")}</h2>
 
-          <form onSubmit={handleCreate}>
-            <div className="form-group">
-              <label>Feature Flag</label>
+            <form onSubmit={handleCreate}>
+              <div className="form-group">
+                <label>{t("featureFlag")}</label>
 
-              <select
-                value={flagId}
-                onChange={(e) => setFlagId(e.target.value)}
-              >
-                <option value="">
-                  Select feature flag
-                </option>
-
-                {flags.map((flag) => (
-                  <option
-                    key={flag.id}
-                    value={flag.id}
-                  >
-                    {flag.key}
+                <select
+                  value={flagId}
+                  onChange={(e) =>
+                    setFlagId(e.target.value)
+                  }
+                >
+                  <option value="">
+                    {t("selectFeatureFlag")}
                   </option>
-                ))}
-              </select>
-            </div>
 
-            <div className="form-group">
-              <label>Environment</label>
+                  {flags.map((flag) => (
+                    <option
+                      key={flag.id}
+                      value={flag.id}
+                    >
+                      {flag.key}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-              <select
-                value={environmentId}
-                onChange={(e) =>
-                  setEnvironmentId(e.target.value)
-                }
-              >
-                <option value="">
-                  Select environment
-                </option>
+              <div className="form-group">
+                <label>{t("environment")}</label>
 
-                {environments.map((environment) => (
-                  <option
-                    key={environment.id}
-                    value={environment.id}
-                  >
-                    {environment.name}
+                <select
+                  value={environmentId}
+                  onChange={(e) =>
+                    setEnvironmentId(e.target.value)
+                  }
+                >
+                  <option value="">
+                    {t("selectEnvironment")}
                   </option>
-                ))}
-              </select>
-            </div>
 
-            <div className="form-group">
-              <label>Override Value</label>
+                  {environments.map((environment) => (
+                    <option
+                      key={environment.id}
+                      value={environment.id}
+                    >
+                      {environment.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-              <select
-                value={value ? "true" : "false"}
-                onChange={(e) =>
-                  setValue(e.target.value === "true")
-                }
+              <div className="form-group">
+                <label>{t("overrideValue")}</label>
+
+                <select
+                  value={value ? "true" : "false"}
+                  onChange={(e) =>
+                    setValue(e.target.value === "true")
+                  }
+                >
+                  <option value="true">
+                    {t("enabledTrue")}
+                  </option>
+
+                  <option value="false">
+                    {t("disabledFalse")}
+                  </option>
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                className="primary-button dashboard-button"
               >
-                <option value="true">
-                  Enabled / True
-                </option>
+                + {t("createOverrideButton")}
+              </button>
+            </form>
+          </section>
+        )}
 
-                <option value="false">
-                  Disabled / False
-                </option>
-              </select>
-            </div>
-
-            <button
-              type="submit"
-              className="primary-button dashboard-button"
-            >
-              + Create Override
-            </button>
-          </form>
-        </section>
-
+        {/* EXISTING OVERRIDES */}
         <section className="welcome-card">
-          <p className="eyebrow">ACTIVE CONFIGURATION</p>
+          <p className="eyebrow">{t("activeConfiguration")}</p>
 
-          <h2>Existing Overrides</h2>
+          <h2>{t("existingOverrides")}</h2>
 
           {loading ? (
-            <p>Loading...</p>
+            <p>{t("loading")}</p>
           ) : overrides.length === 0 ? (
-            <p>
-              No overrides have been created during this session.
-            </p>
+            <p>{t("noEnvironmentOverrides")}</p>
           ) : (
             <div className="environment-list">
               {overrides.map((override) => (
@@ -295,30 +325,33 @@ function Overrides() {
                     </h3>
 
                     <p>
-                      Environment:{" "}
+                      {t("environment")}:{" "}
                       {getEnvironmentName(
                         override.environment_id
                       )}
                     </p>
 
                     <p>
-                      Value:{" "}
+                      {t("value")}:{" "}
                       <strong>
                         {override.value
-                          ? "Enabled"
-                          : "Disabled"}
+                          ? t("enabled")
+                          : t("disabled")}
                       </strong>
                     </p>
                   </div>
 
-                  <button
-                    className="logout-button"
-                    onClick={() =>
-                      handleDelete(override.id)
-                    }
-                  >
-                    Delete
-                  </button>
+                  {/* DELETE - ADMIN ONLY */}
+                  {isAdmin && (
+                    <button
+                      className="logout-button"
+                      onClick={() =>
+                        handleDelete(override.id)
+                      }
+                    >
+                      {t("delete")}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

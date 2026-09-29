@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-
+from app.security import require_admin
 from app.database.connection import get_db
 from app.models.user_group import UserGroup
 from app.schemas.user_group import (
@@ -52,7 +52,8 @@ def get_group(
 )
 def create_group(
     group_data: UserGroupCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin)
 ):
     group = UserGroup(
         group_name=group_data.group_name.strip()
@@ -80,7 +81,8 @@ def create_group(
 def update_group(
     group_id: int,
     group_data: UserGroupUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin)
 ):
     group = db.query(UserGroup).filter(
         UserGroup.id == group_id
@@ -110,7 +112,8 @@ def update_group(
 @router.delete("/{group_id}")
 def delete_group(
     group_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin)
 ):
     group = db.query(UserGroup).filter(
         UserGroup.id == group_id

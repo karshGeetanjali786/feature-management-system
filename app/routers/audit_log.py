@@ -1,12 +1,14 @@
 from datetime import date, datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database.connection import get_db
 from app.models.audit_log import AuditLog
-from app.security import get_current_user
+from app.models.feature_flag import FeatureFlag
+# from app.security import get_current_user
+from app.security import require_admin
 
 
 router = APIRouter(
@@ -18,7 +20,7 @@ router = APIRouter(
 @router.get("/recent")
 def get_recent_audit_logs(
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    current_user=Depends(require_admin)
 ):
     logs = (
         db.query(AuditLog)
@@ -39,7 +41,7 @@ def get_audit_logs(
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    current_user=Depends(require_admin)
 ):
     query = db.query(AuditLog)
 
@@ -57,7 +59,16 @@ def get_audit_logs(
 
     # Filter by flag key
     if flag_key:
+        matching_flag_ids = (
+            db.query(FeatureFlag.id)
+            .filter(
+                FeatureFlag.key.ilike(f"%{flag_key}%")
+            )
+            .subquery()
+        )
+
         query = query.filter(
+            (AuditLog.flag_id.in_(matching_flag_ids)) |
             (AuditLog.old_value.ilike(f"%{flag_key}%")) |
             (AuditLog.new_value.ilike(f"%{flag_key}%"))
         )
@@ -100,3 +111,24 @@ def get_audit_logs(
     )
 
     return logs
+
+
+@router.get("/{audit_log_id}")
+def get_audit_log_detail(
+    audit_log_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin)
+):
+    audit_log = (
+        db.query(AuditLog)
+        .filter(AuditLog.id == audit_log_id)
+        .first()
+    )
+
+    if not audit_log:
+        raise HTTPException(
+            status_code=404,
+            detail="Audit log not found"
+        )
+
+    return audit_log
